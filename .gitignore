@@ -1,0 +1,16 @@
+# Dependências / temporários
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+
+# Artefatos locais de build/debug
+preview.html
+logo_base64.txt
+_extract_preview.json
+_*.py
+~$*
+
+# Opcional: seed JSON fica versionado; LogoData é necessário para o Apps Script

@@ -1,0 +1,936 @@
+<script>
+(function () {
+  'use strict';
+
+  var INDICADORES = (function () {
+    var list = [];
+    var i;
+    for (i = 1; i <= 24; i++) list.push('1.' + i);
+    for (i = 1; i <= 16; i++) list.push('2.' + i);
+    for (i = 1; i <= 18; i++) list.push('3.' + i);
+    return list;
+  })();
+
+  var state = {
+    cursos: [],
+    indicadores: INDICADORES,
+    updatedAt: null,
+    panel: 'conceito',
+    detailMode: false,
+    excelBase64: null,
+    excelName: null,
+    activeTab: 'excel'
+  };
+
+  var el = {
+    logo: document.getElementById('navLogo'),
+    kpiRow: document.getElementById('kpiRow'),
+    yearBars: document.getElementById('yearBars'),
+    topIndicators: document.getElementById('topIndicators'),
+    lowIndicators: document.getElementById('lowIndicators'),
+    tableHead: document.getElementById('tableHead'),
+    tableBody: document.getElementById('tableBody'),
+    tableTitle: document.getElementById('tableTitle'),
+    tableSubtitle: document.getElementById('tableSubtitle'),
+    panelSwitcher: document.getElementById('panelSwitcher'),
+    rowCount: document.getElementById('rowCount'),
+    dataStamp: document.getElementById('dataStamp'),
+    modal: document.getElementById('modalInclude'),
+    loading: document.getElementById('loading'),
+    toast: document.getElementById('toast'),
+    dropzone: document.getElementById('dropzone'),
+    fileExcel: document.getElementById('fileExcel'),
+    fileNameLabel: document.getElementById('fileNameLabel'),
+    manualIndicadores: document.getElementById('manualIndicadores'),
+    filters: {
+      codigo: document.getElementById('fCodigo'),
+      curso: document.getElementById('fCurso'),
+      unidade: document.getElementById('fUnidade'),
+      ano: document.getElementById('fAno'),
+      ato: document.getElementById('fAto'),
+      faixa: document.getElementById('fFaixa')
+    }
+  };
+
+  function init() {
+    if (typeof LOGO_UNISUAM_B64 !== 'undefined') {
+      el.logo.src = 'data:image/png;base64,' + LOGO_UNISUAM_B64;
+    }
+    buildManualIndicatorFields();
+    bindEvents();
+    loadData();
+  }
+
+  function bindEvents() {
+    document.getElementById('btnIncludeCourse').addEventListener('click', openModal);
+    document.getElementById('btnCloseModal').addEventListener('click', closeModal);
+    document.getElementById('btnCancelModal').addEventListener('click', closeModal);
+    document.getElementById('btnSaveModal').addEventListener('click', saveModal);
+    document.getElementById('btnClearFilters').addEventListener('click', clearFilters);
+    document.getElementById('btnCloseKpiModal').addEventListener('click', closeKpiModal);
+    document.getElementById('btnCloseKpiModal2').addEventListener('click', closeKpiModal);
+    document.getElementById('modalKpi').addEventListener('click', function (e) {
+      if (e.target === document.getElementById('modalKpi')) closeKpiModal();
+    });
+
+    Object.keys(el.filters).forEach(function (key) {
+      el.filters[key].addEventListener('change', onFiltersChanged);
+    });
+
+    el.panelSwitcher.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('button[data-panel]');
+      if (!btn || btn.disabled) return;
+      setPanel(btn.getAttribute('data-panel'));
+    });
+
+    document.querySelectorAll('.tabs button[data-tab]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        setModalTab(btn.getAttribute('data-tab'));
+      });
+    });
+
+    el.fileExcel.addEventListener('change', function () {
+      var file = el.fileExcel.files && el.fileExcel.files[0];
+      if (file) readExcelFile(file);
+    });
+
+    ['dragenter', 'dragover'].forEach(function (evt) {
+      el.dropzone.addEventListener(evt, function (e) {
+        e.preventDefault();
+        el.dropzone.classList.add('dragover');
+      });
+    });
+    ['dragleave', 'drop'].forEach(function (evt) {
+      el.dropzone.addEventListener(evt, function (e) {
+        e.preventDefault();
+        el.dropzone.classList.remove('dragover');
+      });
+    });
+    el.dropzone.addEventListener('drop', function (e) {
+      var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) readExcelFile(file);
+    });
+
+    el.modal.addEventListener('click', function (e) {
+      if (e.target === el.modal) closeModal();
+    });
+  }
+
+  function buildManualIndicatorFields() {
+    el.manualIndicadores.innerHTML = INDICADORES.map(function (ind) {
+      return '<div class="field"><label for="ind_' + ind.replace('.', '_') + '">' + ind + '</label>' +
+        '<input type="number" min="0" max="5" step="0.1" id="ind_' + ind.replace('.', '_') + '" data-ind="' + ind + '"></div>';
+    }).join('');
+  }
+
+  function setLoading(on) {
+    el.loading.classList.toggle('open', !!on);
+  }
+
+  function toast(msg, type) {
+    el.toast.textContent = msg;
+    el.toast.className = 'toast show' + (type ? ' ' + type : '');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () {
+      el.toast.classList.remove('show');
+    }, 3800);
+  }
+
+  function loadData() {
+    setLoading(true);
+    google.script.run
+      .withSuccessHandler(function (res) {
+        setLoading(false);
+        if (!res || !res.ok) {
+          toast((res && res.error) || 'Falha ao carregar dados.', 'error');
+          return;
+        }
+        state.cursos = (res.data && res.data.cursos) || [];
+        state.updatedAt = res.data && res.data.updatedAt;
+        if (res.indicadores && res.indicadores.length) state.indicadores = res.indicadores;
+        populateFilterOptions();
+        renderAll();
+      })
+      .withFailureHandler(function (err) {
+        setLoading(false);
+        toast(String(err), 'error');
+      })
+      .getDashboardData();
+  }
+
+  function uniqueSorted(arr, numeric) {
+    var map = {};
+    arr.forEach(function (v) {
+      if (v === null || v === undefined || v === '') return;
+      map[String(v)] = v;
+    });
+    var keys = Object.keys(map);
+    keys.sort(function (a, b) {
+      if (numeric) return Number(a) - Number(b);
+      return a.localeCompare(b, 'pt-BR', { sensitivity: 'base' });
+    });
+    return keys.map(function (k) { return map[k]; });
+  }
+
+  function fillSelect(select, values, allLabel, keepValue) {
+    var current = keepValue ? select.value : '';
+    select.innerHTML = '<option value="">' + allLabel + '</option>' +
+      values.map(function (v) {
+        return '<option value="' + escapeAttr(String(v)) + '">' + escapeHtml(String(v)) + '</option>';
+      }).join('');
+    if (current && values.some(function (v) { return String(v) === current; })) {
+      select.value = current;
+    }
+  }
+
+  function populateFilterOptions() {
+    var cursos = state.cursos;
+    fillSelect(el.filters.codigo, uniqueSorted(cursos.map(function (c) { return c.codigo; }), true), 'Todos', true);
+    fillSelect(el.filters.curso, uniqueSorted(cursos.map(function (c) { return c.curso; })), 'Todos', true);
+    fillSelect(el.filters.unidade, uniqueSorted(cursos.map(function (c) { return c.unidade; })), 'Todas', true);
+    fillSelect(el.filters.ano, uniqueSorted(cursos.map(function (c) { return c.anoVisita; }), true), 'Todos', true);
+    fillSelect(el.filters.ato, uniqueSorted(cursos.map(function (c) { return c.atoRegulatorio; })), 'Todos', true);
+    fillSelect(el.filters.faixa, uniqueSorted(cursos.map(function (c) { return c.conceitoFinalFaixa; }), true), 'Todos', true);
+  }
+
+  function getFilters() {
+    return {
+      codigo: el.filters.codigo.value,
+      curso: el.filters.curso.value,
+      unidade: el.filters.unidade.value,
+      ano: el.filters.ano.value,
+      ato: el.filters.ato.value,
+      faixa: el.filters.faixa.value
+    };
+  }
+
+  function filteredCursos() {
+    var f = getFilters();
+    return state.cursos.filter(function (c) {
+      if (f.codigo && String(c.codigo) !== f.codigo) return false;
+      if (f.curso && String(c.curso) !== f.curso) return false;
+      if (f.unidade && String(c.unidade) !== f.unidade) return false;
+      if (f.ano && String(c.anoVisita) !== f.ano) return false;
+      if (f.ato && String(c.atoRegulatorio) !== f.ato) return false;
+      if (f.faixa && String(c.conceitoFinalFaixa) !== f.faixa) return false;
+      return true;
+    });
+  }
+
+  function isDetailMode(filters) {
+    return !!(filters.codigo || filters.curso);
+  }
+
+  function onFiltersChanged() {
+    var f = getFilters();
+    var wasDetail = state.detailMode;
+    state.detailMode = isDetailMode(f);
+    if (state.detailMode) {
+      state.panel = 'indicadores';
+    } else if (wasDetail) {
+      state.panel = 'conceito';
+    }
+    renderAll();
+  }
+
+  function clearFilters() {
+    Object.keys(el.filters).forEach(function (k) { el.filters[k].value = ''; });
+    state.detailMode = false;
+    state.panel = 'conceito';
+    renderAll();
+  }
+
+  function setPanel(panel) {
+    if (state.detailMode && panel !== 'indicadores') return;
+    state.panel = panel;
+    renderTable(filteredCursos());
+    updatePanelSwitcher();
+  }
+
+  function updatePanelSwitcher() {
+    var buttons = el.panelSwitcher.querySelectorAll('button[data-panel]');
+    buttons.forEach(function (btn) {
+      var panel = btn.getAttribute('data-panel');
+      btn.classList.toggle('active', panel === state.panel);
+      btn.disabled = state.detailMode && panel !== 'indicadores';
+    });
+    if (state.detailMode) {
+      el.tableTitle.textContent = 'Painel de Indicadores';
+      el.tableSubtitle.textContent = 'Indicadores do curso selecionado';
+    } else {
+      var titles = {
+        conceito: ['Painel Conceito', 'Visão geral dos cursos avaliados'],
+        indicadores: ['Painel de Indicadores', 'Notas por indicador (1.1 a 3.18)'],
+        detalhes: ['Painel de Detalhes', 'Distribuição de indicadores < 3 e ≥ 3 (geral, com CC e por ano)']
+      };
+      var t = titles[state.panel] || titles.conceito;
+      el.tableTitle.textContent = t[0];
+      el.tableSubtitle.textContent = t[1];
+    }
+  }
+
+  function renderAll() {
+    var f = getFilters();
+    state.detailMode = isDetailMode(f);
+    if (state.detailMode) state.panel = 'indicadores';
+    var rows = filteredCursos();
+    renderKpis(rows);
+    renderYearBars(rows);
+    renderIndicatorExtremes(rows);
+    updatePanelSwitcher();
+    renderTable(rows);
+    el.rowCount.textContent = rows.length + (rows.length === 1 ? ' registro' : ' registros');
+    el.dataStamp.textContent = state.updatedAt
+      ? 'Atualizado em ' + formatDate(state.updatedAt)
+      : 'Base local · ' + state.cursos.length + ' cursos';
+  }
+
+  function renderKpis(rows) {
+    if (state.detailMode) {
+      var continuo = avg(rows.map(function (c) { return c.conceitoFinalContinuo; }));
+      var faixa = modeNumber(rows.map(function (c) { return c.conceitoFinalFaixa; }));
+      el.kpiRow.className = 'kpi-row cols-2';
+      el.kpiRow.innerHTML =
+        kpiHtml('Conceito Final Contínuo', formatScore(continuo), 'Clique para ver os cursos do recorte', 'tone-focus', 'detail-continuo') +
+        kpiHtml('Conceito Final Faixa', faixa == null ? '—' : String(faixa), 'Clique para ver os cursos do recorte', 'tone-accent', 'detail-faixa');
+      bindKpiClicks(rows);
+      return;
+    }
+
+    var scored = rows.filter(function (c) { return toNum(c.conceitoFinalFaixa) != null; });
+    var n5 = scored.filter(function (c) { return toNum(c.conceitoFinalFaixa) === 5; }).length;
+    var n4 = scored.filter(function (c) { return toNum(c.conceitoFinalFaixa) === 4; }).length;
+    var nLow = scored.filter(function (c) {
+      var v = toNum(c.conceitoFinalFaixa);
+      return v != null && v < 4;
+    }).length;
+
+    var hintBase = scored.length ? scored.length + ' com conceito informado · clique para detalhar' : 'Sem conceitos na base — importe a planilha com valores';
+    el.kpiRow.className = 'kpi-row cols-3';
+    el.kpiRow.innerHTML =
+      kpiHtml('Cursos com Nota 5', String(n5), scored.length ? pctLabel(n5, scored.length) + ' · clique' : hintBase, 'tone-5', 'nota-5') +
+      kpiHtml('Cursos com Nota 4', String(n4), scored.length ? pctLabel(n4, scored.length) + ' · clique' : hintBase, 'tone-4', 'nota-4') +
+      kpiHtml('Cursos com Nota < 4', String(nLow), scored.length ? pctLabel(nLow, scored.length) + ' · clique' : hintBase, 'tone-low', 'nota-lt4');
+    bindKpiClicks(rows);
+  }
+
+  function kpiHtml(label, value, hint, tone, action) {
+    var clickable = action ? ' clickable' : '';
+    var attrs = action
+      ? ' role="button" tabindex="0" data-kpi="' + escapeAttr(action) + '"'
+      : '';
+    return '<article class="kpi-card ' + tone + clickable + '"' + attrs + '>' +
+      '<p class="kpi-label">' + escapeHtml(label) + '</p>' +
+      '<p class="kpi-value">' + escapeHtml(value) + '</p>' +
+      '<p class="kpi-hint">' + escapeHtml(hint) + '</p></article>';
+  }
+
+  function bindKpiClicks(rows) {
+    el.kpiRow.querySelectorAll('[data-kpi]').forEach(function (card) {
+      var open = function () { openKpiModal(card.getAttribute('data-kpi'), rows); };
+      card.addEventListener('click', open);
+      card.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          open();
+        }
+      });
+    });
+  }
+
+  function openKpiModal(action, rows) {
+    var title = 'Detalhe';
+    var subtitle = '';
+    var list = [];
+
+    if (action === 'nota-5') {
+      title = 'Cursos com Nota 5';
+      list = rows.filter(function (c) { return toNum(c.conceitoFinalFaixa) === 5; });
+      subtitle = list.length + ' curso(s) com Conceito Final Faixa = 5';
+    } else if (action === 'nota-4') {
+      title = 'Cursos com Nota 4';
+      list = rows.filter(function (c) { return toNum(c.conceitoFinalFaixa) === 4; });
+      subtitle = list.length + ' curso(s) com Conceito Final Faixa = 4';
+    } else if (action === 'nota-lt4') {
+      title = 'Cursos com Nota < 4';
+      list = rows.filter(function (c) {
+        var v = toNum(c.conceitoFinalFaixa);
+        return v != null && v < 4;
+      });
+      subtitle = list.length + ' curso(s) com Conceito Final Faixa menor que 4';
+    } else if (action === 'detail-continuo' || action === 'detail-faixa') {
+      title = action === 'detail-continuo' ? 'Conceito Final Contínuo' : 'Conceito Final Faixa';
+      list = rows.slice();
+      subtitle = list.length + ' curso(s) no recorte selecionado';
+    } else {
+      return;
+    }
+
+    document.getElementById('kpiModalTitle').textContent = title;
+    document.getElementById('kpiModalSubtitle').textContent = subtitle;
+    document.getElementById('kpiModalHead').innerHTML =
+      '<tr>' + th('Código') + th('Curso') + th('Unidade') + th('Ano Visita') +
+      th('Ato Regulatório') + th('Conceito Contínuo') + th('Conceito Faixa') + '</tr>';
+
+    var body = document.getElementById('kpiModalBody');
+    if (!list.length) {
+      body.innerHTML = emptyRow(7);
+    } else {
+      body.innerHTML = list.map(function (c) {
+        return '<tr>' +
+          td(c.codigo, 'num') +
+          td(c.curso) +
+          td(c.unidade) +
+          td(c.anoVisita, 'num') +
+          td(c.atoRegulatorio) +
+          td(formatScore(c.conceitoFinalContinuo), 'num') +
+          td(faixaBadge(c.conceitoFinalFaixa), '') +
+          '</tr>';
+      }).join('');
+    }
+    document.getElementById('modalKpi').classList.add('open');
+  }
+
+  function closeKpiModal() {
+    document.getElementById('modalKpi').classList.remove('open');
+  }
+
+  function renderYearBars(rows) {
+    var counts = {};
+    rows.forEach(function (c) {
+      if (c.anoVisita == null || c.anoVisita === '') return;
+      var y = String(c.anoVisita);
+      counts[y] = (counts[y] || 0) + 1;
+    });
+    var years = Object.keys(counts).sort();
+    if (!years.length) {
+      el.yearBars.innerHTML = '<p class="empty-soft">Sem avaliações no recorte atual.</p>';
+      return;
+    }
+    var max = Math.max.apply(null, years.map(function (y) { return counts[y]; }));
+    el.yearBars.innerHTML = years.map(function (y) {
+      var n = counts[y];
+      var w = max ? Math.round((n / max) * 100) : 0;
+      return '<div class="year-row"><span class="y">' + escapeHtml(y) + '</span>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + w + '%"></div></div>' +
+        '<span class="n">' + n + '</span></div>';
+    }).join('');
+  }
+
+  function collectIndicatorStats(rows) {
+    var stats = {};
+    INDICADORES.forEach(function (ind) {
+      stats[ind] = { count: 0, hitMax: 0, hitMin: 0, values: [] };
+    });
+    rows.forEach(function (c) {
+      var inds = c.indicadores || {};
+      INDICADORES.forEach(function (ind) {
+        var v = toNum(inds[ind]);
+        if (v == null) return;
+        stats[ind].count += 1;
+        stats[ind].values.push(v);
+      });
+    });
+
+    var globalMax = null;
+    var globalMin = null;
+    Object.keys(stats).forEach(function (ind) {
+      stats[ind].values.forEach(function (v) {
+        if (globalMax == null || v > globalMax) globalMax = v;
+        if (globalMin == null || v < globalMin) globalMin = v;
+      });
+    });
+
+    Object.keys(stats).forEach(function (ind) {
+      stats[ind].values.forEach(function (v) {
+        if (globalMax != null && nearlyEqual(v, globalMax)) stats[ind].hitMax += 1;
+        if (globalMin != null && nearlyEqual(v, globalMin)) stats[ind].hitMin += 1;
+      });
+    });
+
+    return {
+      globalMax: globalMax,
+      globalMin: globalMin,
+      items: Object.keys(stats).map(function (ind) {
+        return {
+          indicador: ind,
+          count: stats[ind].count,
+          hitMax: stats[ind].hitMax,
+          hitMin: stats[ind].hitMin
+        };
+      }).filter(function (x) { return x.count > 0; })
+    };
+  }
+
+  function renderIndicatorExtremes(rows) {
+    var packed = collectIndicatorStats(rows);
+    var list = packed.items;
+    if (!list.length || packed.globalMax == null) {
+      el.topIndicators.innerHTML = '<li class="empty-soft" style="display:block;background:transparent;border:none;">Sem notas de indicadores.</li>';
+      el.lowIndicators.innerHTML = '<li class="empty-soft" style="display:block;background:transparent;border:none;">Sem notas de indicadores.</li>';
+      return;
+    }
+
+    var tops = list.filter(function (x) { return x.hitMax > 0; })
+      .sort(function (a, b) { return indicatorSort(a.indicador, b.indicador); });
+    var lows = list.filter(function (x) { return x.hitMin > 0; })
+      .sort(function (a, b) { return indicatorSort(a.indicador, b.indicador); });
+
+    var topTitle = el.topIndicators.previousElementSibling;
+    var lowTitle = el.lowIndicators.previousElementSibling;
+    if (topTitle && topTitle.tagName === 'H3') {
+      topTitle.innerHTML = 'Indicadores com a Maior Nota <span style="font-weight:600;color:#5B6B7F;text-transform:none;letter-spacing:0;">(' +
+        formatScore(packed.globalMax) + ')</span>';
+    }
+    if (lowTitle && lowTitle.tagName === 'H3') {
+      lowTitle.innerHTML = 'Indicadores com a Menor Nota <span style="font-weight:600;color:#5B6B7F;text-transform:none;letter-spacing:0;">(' +
+        formatScore(packed.globalMin) + ')</span>';
+    }
+
+    el.topIndicators.innerHTML = tops.length
+      ? tops.map(function (x) { return indicatorItem(x, x.hitMax, x.count, 'high'); }).join('')
+      : '<li class="empty-soft" style="display:block;background:transparent;border:none;">Nenhum indicador.</li>';
+    el.lowIndicators.innerHTML = lows.length
+      ? lows.map(function (x) { return indicatorItem(x, x.hitMin, x.count, 'low'); }).join('')
+      : '<li class="empty-soft" style="display:block;background:transparent;border:none;">Nenhum indicador.</li>';
+  }
+
+  function indicatorItem(x, hits, totalForInd, cls) {
+    var pct = totalForInd ? (hits / totalForInd) * 100 : 0;
+    return '<li class="' + cls + '"><span class="ind-code">' + escapeHtml(x.indicador) + '</span>' +
+      '<span class="ind-meta">' + hits + ' · ' + pct.toFixed(1).replace('.', ',') + '%</span></li>';
+  }
+
+  function renderTable(rows) {
+    if (state.detailMode || state.panel === 'indicadores') {
+      renderIndicadoresTable(rows);
+    } else if (state.panel === 'detalhes') {
+      renderDetalhesTable(rows);
+    } else {
+      renderConceitoTable(rows);
+    }
+  }
+
+  function renderConceitoTable(rows) {
+    el.tableHead.innerHTML = '<tr>' +
+      th('Código') + th('Curso') + th('Unidade') + th('Ano Visita') +
+      th('Ato Regulatório') + th('Conceito Final Contínuo') + th('Conceito Final Faixa') +
+      '</tr>';
+    if (!rows.length) {
+      el.tableBody.innerHTML = emptyRow(7);
+      return;
+    }
+    el.tableBody.innerHTML = rows.map(function (c) {
+      return '<tr>' +
+        td(c.codigo, 'num') +
+        td(c.curso) +
+        td(c.unidade) +
+        td(c.anoVisita, 'num') +
+        td(c.atoRegulatorio) +
+        td(formatScore(c.conceitoFinalContinuo), 'num') +
+        td(faixaBadge(c.conceitoFinalFaixa), '') +
+        '</tr>';
+    }).join('');
+  }
+
+  function renderIndicadoresTable(rows) {
+    var head = '<tr>' + th('Código') + th('Curso') + th('Unidade') + th('Ano Visita') + th('Ato Regulatório');
+    INDICADORES.forEach(function (ind) { head += th(ind); });
+    head += '</tr>';
+    el.tableHead.innerHTML = head;
+
+    if (!rows.length) {
+      el.tableBody.innerHTML = emptyRow(5 + INDICADORES.length);
+      return;
+    }
+
+    el.tableBody.innerHTML = rows.map(function (c) {
+      var inds = c.indicadores || {};
+      var cells = td(c.codigo, 'num') + td(c.curso) + td(c.unidade) + td(c.anoVisita, 'num') + td(c.atoRegulatorio);
+      INDICADORES.forEach(function (ind) {
+        var v = toNum(inds[ind]);
+        cells += td(formatScore(v), 'num ' + scoreClass(v));
+      });
+      return '<tr>' + cells + '</tr>';
+    }).join('');
+  }
+
+  function renderDetalhesTable(rows) {
+    var headers = [
+      'Indicador',
+      'Qnt < 3',
+      'Qnt ≥ 3',
+      '% < 3',
+      '% ≥ 3',
+      'Qnt < 3 Com CC < 3',
+      'Qnt ≥ 3 Com CC ≥ 3',
+      'Qnt < 3 (2023)',
+      '% < 3 (2023)',
+      'Qnt ≥ 3 (2023)',
+      '% ≥ 3 (2023)',
+      'Qnt < 3 (2024)',
+      '% < 3 (2024)',
+      'Qnt ≥ 3 (2024)',
+      '% ≥ 3 (2024)',
+      'Qnt < 3 (2025)',
+      '% < 3 (2025)',
+      'Qnt ≥ 3 (2025)',
+      '% ≥ 3 (2025)'
+    ];
+    el.tableHead.innerHTML = '<tr>' + headers.map(th).join('') + '</tr>';
+
+    var totalCursos = rows.length || 1;
+    var byYear = { 2023: 0, 2024: 0, 2025: 0 };
+    rows.forEach(function (c) {
+      if (byYear[c.anoVisita] !== undefined) byYear[c.anoVisita]++;
+    });
+
+    var details = INDICADORES.map(function (ind) {
+      var lt3 = 0, gt3 = 0, lt3Cc = 0, gt3Cc = 0;
+      var yLt = { 2023: 0, 2024: 0, 2025: 0 };
+      var yGt = { 2023: 0, 2024: 0, 2025: 0 };
+
+      rows.forEach(function (c) {
+        var v = toNum((c.indicadores || {})[ind]);
+        if (v == null) return;
+        var cc = toNum(c.conceitoFinalFaixa);
+        var year = c.anoVisita;
+
+        if (v < 3) {
+          lt3++;
+          if (cc != null && cc < 3) lt3Cc++;
+          if (yLt[year] !== undefined) yLt[year]++;
+        } else if (v >= 3) {
+          gt3++;
+          if (cc != null && cc >= 3) gt3Cc++;
+          if (yGt[year] !== undefined) yGt[year]++;
+        }
+      });
+
+      function pct(part, base) {
+        return base ? (part / base) * 100 : 0;
+      }
+
+      return {
+        indicador: ind,
+        qtdLt3: lt3,
+        qtdGt3: gt3,
+        pctLt3: pct(lt3, totalCursos),
+        pctGt3: pct(gt3, totalCursos),
+        qtdLt3Cc: lt3Cc,
+        qtdGt3Cc: gt3Cc,
+        qLt2023: yLt[2023],
+        pLt2023: pct(yLt[2023], byYear[2023]),
+        qGt2023: yGt[2023],
+        pGt2023: pct(yGt[2023], byYear[2023]),
+        qLt2024: yLt[2024],
+        pLt2024: pct(yLt[2024], byYear[2024]),
+        qGt2024: yGt[2024],
+        pGt2024: pct(yGt[2024], byYear[2024]),
+        qLt2025: yLt[2025],
+        pLt2025: pct(yLt[2025], byYear[2025]),
+        qGt2025: yGt[2025],
+        pGt2025: pct(yGt[2025], byYear[2025])
+      };
+    });
+
+    el.tableBody.innerHTML = details.map(function (d) {
+      return '<tr>' +
+        td(d.indicador, 'num') +
+        td(d.qtdLt3, 'num score-bad') +
+        td(d.qtdGt3, 'num score-ok') +
+        td(formatPct(d.pctLt3), 'num') +
+        td(formatPct(d.pctGt3), 'num') +
+        td(d.qtdLt3Cc, 'num') +
+        td(d.qtdGt3Cc, 'num') +
+        td(d.qLt2023, 'num') +
+        td(formatPct(d.pLt2023), 'num') +
+        td(d.qGt2023, 'num') +
+        td(formatPct(d.pGt2023), 'num') +
+        td(d.qLt2024, 'num') +
+        td(formatPct(d.pLt2024), 'num') +
+        td(d.qGt2024, 'num') +
+        td(formatPct(d.pGt2024), 'num') +
+        td(d.qLt2025, 'num') +
+        td(formatPct(d.pLt2025), 'num') +
+        td(d.qGt2025, 'num') +
+        td(formatPct(d.pGt2025), 'num') +
+        '</tr>';
+    }).join('');
+  }
+
+  function th(text) { return '<th>' + escapeHtml(text) + '</th>'; }
+  function td(content, cls) {
+    return '<td class="' + (cls || '') + '">' + (content == null ? '—' : content) + '</td>';
+  }
+  function emptyRow(cols) {
+    return '<tr><td colspan="' + cols + '" style="text-align:center;color:#5B6B7F;padding:1.5rem;">Nenhum registro para o filtro atual.</td></tr>';
+  }
+
+  function faixaBadge(v) {
+    if (v == null || v === '') return '—';
+    var n = Number(v);
+    var cls = n === 5 ? 'badge-5' : n === 4 ? 'badge-4' : 'badge-low';
+    return '<span class="badge ' + cls + '">' + escapeHtml(String(v)) + '</span>';
+  }
+
+  function scoreClass(v) {
+    if (v == null) return '';
+    if (v >= 4) return 'score-cell score-ok';
+    if (v >= 3) return 'score-cell score-warn';
+    return 'score-cell score-bad';
+  }
+
+  /* ===== Modal ===== */
+  function openModal() {
+    state.excelBase64 = null;
+    state.excelName = null;
+    el.fileExcel.value = '';
+    el.fileNameLabel.textContent = 'Nenhum arquivo selecionado.';
+    document.getElementById('manualForm').reset();
+    setModalTab('excel');
+    el.modal.classList.add('open');
+  }
+
+  function closeModal() {
+    el.modal.classList.remove('open');
+  }
+
+  function setModalTab(tab) {
+    state.activeTab = tab;
+    document.querySelectorAll('.tabs button[data-tab]').forEach(function (b) {
+      b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+    });
+    document.getElementById('tab-excel').classList.toggle('active', tab === 'excel');
+    document.getElementById('tab-manual').classList.toggle('active', tab === 'manual');
+  }
+
+  function readExcelFile(file) {
+    if (!/\.xlsx?$/i.test(file.name)) {
+      toast('Envie um arquivo Excel (.xlsx).', 'error');
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function () {
+      var result = String(reader.result || '');
+      state.excelBase64 = result;
+      state.excelName = file.name;
+      el.fileNameLabel.textContent = 'Arquivo: ' + file.name + ' (' + formatBytes(file.size) + ')';
+    };
+    reader.onerror = function () { toast('Não foi possível ler o arquivo.', 'error'); };
+    reader.readAsDataURL(file);
+  }
+
+  function saveModal() {
+    if (state.activeTab === 'excel') {
+      if (!state.excelBase64) {
+        toast('Selecione uma planilha Excel.', 'error');
+        return;
+      }
+      setLoading(true);
+      var strategy = document.getElementById('importStrategy').value;
+      google.script.run
+        .withSuccessHandler(function (res) {
+          setLoading(false);
+          if (!res || !res.ok) {
+            toast((res && res.error) || 'Falha na importação.', 'error');
+            return;
+          }
+          state.cursos = (res.data && res.data.cursos) || [];
+          state.updatedAt = res.data && res.data.updatedAt;
+          populateFilterOptions();
+          renderAll();
+          closeModal();
+          toast(
+            buildImportMessage_(res),
+            (res.diagnostics && res.diagnostics.withFaixa === 0 && res.diagnostics.withIndicadores === 0)
+              ? 'error'
+              : 'success'
+          );
+        })
+        .withFailureHandler(function (err) {
+          setLoading(false);
+          toast(String(err), 'error');
+        })
+        .importExcelBase64(state.excelBase64, state.excelName, strategy);
+      return;
+    }
+
+    var curso = {
+      codigo: document.getElementById('mCodigo').value.trim(),
+      curso: document.getElementById('mCurso').value.trim(),
+      unidade: document.getElementById('mUnidade').value.trim(),
+      anoVisita: document.getElementById('mAno').value,
+      atoRegulatorio: document.getElementById('mAto').value.trim(),
+      conceitoFinalContinuo: document.getElementById('mContinuo').value,
+      conceitoFinalFaixa: document.getElementById('mFaixa').value,
+      indicadores: {}
+    };
+    if (!curso.codigo || !curso.curso || !curso.unidade || !curso.anoVisita || !curso.atoRegulatorio) {
+      toast('Preencha os campos obrigatórios do curso.', 'error');
+      return;
+    }
+    el.manualIndicadores.querySelectorAll('input[data-ind]').forEach(function (input) {
+      curso.indicadores[input.getAttribute('data-ind')] = input.value === '' ? null : Number(input.value);
+    });
+
+    setLoading(true);
+    google.script.run
+      .withSuccessHandler(function (res) {
+        setLoading(false);
+        if (!res || !res.ok) {
+          toast((res && res.error) || 'Falha ao salvar.', 'error');
+          return;
+        }
+        state.cursos = (res.data && res.data.cursos) || [];
+        state.updatedAt = res.data && res.data.updatedAt;
+        populateFilterOptions();
+        renderAll();
+        closeModal();
+        toast('Curso salvo com sucesso.', 'success');
+      })
+      .withFailureHandler(function (err) {
+        setLoading(false);
+        toast(String(err), 'error');
+      })
+      .saveCursoManual(curso);
+  }
+
+  /* ===== helpers ===== */
+  function toNum(v) {
+    if (v === null || v === undefined || v === '') return null;
+    var n = Number(String(v).replace(',', '.'));
+    return isFinite(n) ? n : null;
+  }
+
+  function avg(arr) {
+    var nums = arr.map(toNum).filter(function (v) { return v != null; });
+    if (!nums.length) return null;
+    return nums.reduce(function (a, b) { return a + b; }, 0) / nums.length;
+  }
+
+  function modeNumber(arr) {
+    var counts = {};
+    var best = null;
+    var bestN = 0;
+    arr.forEach(function (v) {
+      var n = toNum(v);
+      if (n == null) return;
+      var k = String(n);
+      counts[k] = (counts[k] || 0) + 1;
+      if (counts[k] > bestN) {
+        bestN = counts[k];
+        best = n;
+      }
+    });
+    return best;
+  }
+
+  function formatScore(v) {
+    if (v == null || v === '') return '—';
+    var n = Number(v);
+    if (!isFinite(n)) return '—';
+    return (Math.round(n * 100) / 100).toFixed(2).replace('.', ',');
+  }
+
+  function formatPct(v) {
+    if (v == null || !isFinite(v)) return '—';
+    return (Math.round(v * 10) / 10).toFixed(1).replace('.', ',') + '%';
+  }
+
+  function pctLabel(part, total) {
+    if (!total) return '0% do total';
+    return ((part / total) * 100).toFixed(1).replace('.', ',') + '% do total';
+  }
+
+  function nearlyEqual(a, b) {
+    return Math.abs(a - b) < 0.0001;
+  }
+
+  function indicatorSort(a, b) {
+    var pa = a.split('.').map(Number);
+    var pb = b.split('.').map(Number);
+    return (pa[0] - pb[0]) || (pa[1] - pb[1]);
+  }
+
+  function formatDate(iso) {
+    try {
+      var d = new Date(iso);
+      return d.toLocaleString('pt-BR');
+    } catch (e) {
+      return iso;
+    }
+  }
+
+  function formatBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function buildImportMessage_(res) {
+    var d = res.diagnostics || {};
+    var parts = [];
+    parts.push((res.imported || res.total || 0) + ' curso(s)');
+    if (d.withFaixa != null) parts.push(d.withFaixa + ' com conceito faixa');
+    if (d.withIndicadores != null) parts.push(d.withIndicadores + ' com indicadores');
+    if (d.refErrors) parts.push(d.refErrors + ' células #REF! ignoradas');
+    var msg = 'Importação: ' + parts.join(' · ');
+    if (d.withFaixa === 0 && d.withIndicadores === 0) {
+      msg += '. A planilha não trouxe notas (só metadados ou #REF!). Exporte as abas com Colar especial → Valores.';
+    }
+    return msg;
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/'/g, '&#39;');
+  }
+
+  // For local preview without google.script
+  if (typeof google === 'undefined' || !google.script) {
+    window.google = {
+      script: {
+        run: {
+          withSuccessHandler: function (cb) {
+            this._ok = cb;
+            return this;
+          },
+          withFailureHandler: function (cb) {
+            this._err = cb;
+            return this;
+          },
+          getDashboardData: function () {
+            var self = this;
+            setTimeout(function () {
+              self._ok({
+                ok: true,
+                data: { version: 1, updatedAt: new Date().toISOString(), cursos: DEMO_CURSOS },
+                indicadores: INDICADORES
+              });
+            }, 200);
+          },
+          importExcelBase64: function () {
+            this._err('Importação Excel disponível apenas no Google Apps Script.');
+          },
+          saveCursoManual: function (curso) {
+            DEMO_CURSOS.push(curso);
+            this._ok({ ok: true, data: { cursos: DEMO_CURSOS, updatedAt: new Date().toISOString() }, total: DEMO_CURSOS.length });
+          }
+        }
+      }
+    };
+  }
+
+  var DEMO_CURSOS = [];
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>

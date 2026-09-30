@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard Avaliação MEC | UNISUAM</title>
+  <?!= include('Stylesheet'); ?>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="navbar">
+      <div class="nav-brand">
+        <img id="navLogo" class="nav-logo" alt="UNISUAM" width="120" height="52">
+        <div class="nav-titles">
+          <p class="nav-eyebrow">UNISUAM · Qualidade Acadêmica</p>
+          <h1 class="nav-title">Dashboard Avaliação MEC</h1>
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary icon-plus" id="btnIncludeCourse">Incluir curso</button>
+    </header>
+
+    <main>
+      <section class="panel" aria-label="Filtros">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">Filtros de exibição</h2>
+            <p class="panel-subtitle">Por padrão, todos os cursos. Código e Curso abrem a visão detalhada.</p>
+          </div>
+        </div>
+        <div class="filters-grid">
+          <div class="field">
+            <label for="fCodigo">Código e-Mec</label>
+            <select id="fCodigo"><option value="">Todos</option></select>
+          </div>
+          <div class="field">
+            <label for="fCurso">Curso</label>
+            <select id="fCurso"><option value="">Todos</option></select>
+          </div>
+          <div class="field">
+            <label for="fUnidade">Unidade</label>
+            <select id="fUnidade"><option value="">Todas</option></select>
+          </div>
+          <div class="field">
+            <label for="fAno">Ano Visita</label>
+            <select id="fAno"><option value="">Todos</option></select>
+          </div>
+          <div class="field">
+            <label for="fAto">Ato Regulatório</label>
+            <select id="fAto"><option value="">Todos</option></select>
+          </div>
+          <div class="field">
+            <label for="fFaixa">Conceito Final Faixa</label>
+            <select id="fFaixa"><option value="">Todos</option></select>
+          </div>
+        </div>
+        <div class="filters-actions">
+          <button type="button" class="btn btn-secondary btn-sm" id="btnClearFilters">Limpar filtros</button>
+        </div>
+      </section>
+
+      <section id="kpiRow" class="kpi-row cols-3" aria-label="Indicadores principais"></section>
+
+      <section class="stats-row" aria-label="Segunda linha de dados">
+        <article class="stat-card">
+          <h3>Quantidade de Avaliações</h3>
+          <div id="yearBars" class="year-bars"></div>
+        </article>
+        <article class="stat-card">
+          <h3>Indicadores com a Maior Nota</h3>
+          <ul id="topIndicators" class="indicator-list"></ul>
+        </article>
+        <article class="stat-card">
+          <h3>Indicadores com a Menor Nota</h3>
+          <ul id="lowIndicators" class="indicator-list"></ul>
+        </article>
+      </section>
+
+      <section class="panel" aria-label="Painéis de dados">
+        <div class="table-toolbar">
+          <div>
+            <h2 class="panel-title" id="tableTitle">Painel Conceito</h2>
+            <p class="panel-subtitle" id="tableSubtitle">Visão geral dos cursos avaliados</p>
+          </div>
+          <div class="segmented" id="panelSwitcher" role="tablist" aria-label="Tipo de painel">
+            <button type="button" class="active" data-panel="conceito">Painel Conceito</button>
+            <button type="button" data-panel="indicadores">Painel de Indicadores</button>
+            <button type="button" data-panel="detalhes">Painel de Detalhes</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="dataTable">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div class="status-bar">
+          <span id="rowCount">0 registros</span>
+          <span id="dataStamp">—</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal Incluir Curso -->
+  <div class="modal-backdrop" id="modalInclude" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">Incluir curso</h2>
+        <button type="button" class="modal-close" id="btnCloseModal" aria-label="Fechar">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="tabs">
+          <button type="button" class="active" data-tab="excel">Planilha Excel</button>
+          <button type="button" data-tab="manual">Cadastro manual</button>
+        </div>
+
+        <div class="tab-pane active" id="tab-excel">
+          <div class="dropzone" id="dropzone">
+            <strong>Arraste a planilha .xlsx aqui</strong>
+            <p>Pode enviar o arquivo completo de uma vez (Painel Conceito + Painel Indicadores). As notas precisam estar em <em>valores</em>, não em fórmulas com #REF!.</p>
+            <input type="file" id="fileExcel" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+          </div>
+          <div class="field" style="margin-top:1rem;">
+            <label for="importStrategy">Estratégia de importação</label>
+            <select id="importStrategy">
+              <option value="replace_all">Substituir toda a base (recomendado ao reimportar a planilha completa)</option>
+              <option value="upsert">Atualizar existentes e incluir novos</option>
+            </select>
+          </div>
+          <p class="panel-subtitle" style="margin-top:0.75rem;">
+            Dica: se quiser, exportar cada aba com “Colar especial → Valores” e importar em sequência também funciona (upsert).
+          </p>
+          <p class="panel-subtitle" style="margin-top:0.35rem;" id="fileNameLabel">Nenhum arquivo selecionado.</p>
+        </div>
+
+        <div class="tab-pane" id="tab-manual">
+          <form id="manualForm" autocomplete="off">
+            <div class="manual-grid">
+              <div class="field"><label for="mCodigo">Código e-Mec</label><input id="mCodigo" required></div>
+              <div class="field"><label for="mCurso">Curso</label><input id="mCurso" required></div>
+              <div class="field"><label for="mUnidade">Unidade</label><input id="mUnidade" required></div>
+              <div class="field"><label for="mAno">Ano Visita</label><input id="mAno" type="number" min="2000" max="2100" required></div>
+              <div class="field"><label for="mAto">Ato Regulatório</label><input id="mAto" required></div>
+              <div class="field"><label for="mContinuo">Conceito Final Contínuo</label><input id="mContinuo" type="number" step="0.01" min="0" max="5"></div>
+              <div class="field"><label for="mFaixa">Conceito Final Faixa</label><input id="mFaixa" type="number" step="1" min="1" max="5"></div>
+              <div class="field span-3">
+                <label>Indicadores (1.1 → 3.18)</label>
+                <div class="indicadores-grid" id="manualIndicadores"></div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btnCancelModal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnSaveModal">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal KPI / detalhes -->
+  <div class="modal-backdrop" id="modalKpi" role="dialog" aria-modal="true" aria-labelledby="kpiModalTitle">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="kpiModalTitle">Detalhe do KPI</h2>
+        <button type="button" class="modal-close" id="btnCloseKpiModal" aria-label="Fechar">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="panel-subtitle" id="kpiModalSubtitle" style="margin-top:0;"></p>
+        <div class="modal-table-wrap">
+          <table class="data-table" id="kpiModalTable">
+            <thead id="kpiModalHead"></thead>
+            <tbody id="kpiModalBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btnCloseKpiModal2">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading-overlay" id="loading"><div class="spinner" aria-label="Carregando"></div></div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <?!= include('LogoData'); ?>
+  <?!= include('JavaScript'); ?>
+</body>
+</html>
