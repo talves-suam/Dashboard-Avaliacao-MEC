@@ -11,20 +11,102 @@
     return list;
   })();
 
+  /** Nomes do Instrumento de Avaliação de Cursos de Graduação (Inep, 2017). */
+  var INDICADOR_NOMES = {
+    '1.1': 'Políticas institucionais no âmbito do curso',
+    '1.2': 'Objetivos do curso',
+    '1.3': 'Perfil profissional do egresso',
+    '1.4': 'Estrutura curricular',
+    '1.5': 'Conteúdos curriculares',
+    '1.6': 'Metodologia',
+    '1.7': 'Estágio curricular supervisionado',
+    '1.8': 'Estágio curricular supervisionado – relação com a rede de escolas da educação básica',
+    '1.9': 'Estágio curricular supervisionado – relação teoria e prática',
+    '1.10': 'Atividades complementares',
+    '1.11': 'Trabalhos de Conclusão de Curso (TCC)',
+    '1.12': 'Apoio ao discente',
+    '1.13': 'Gestão do curso e os processos de avaliação interna e externa',
+    '1.14': 'Atividades de tutoria',
+    '1.15': 'Conhecimentos, habilidades e atitudes necessárias às atividades de tutoria',
+    '1.16': 'Tecnologias de Informação e Comunicação (TIC) no processo ensino-aprendizagem',
+    '1.17': 'Ambiente Virtual de Aprendizagem (AVA)',
+    '1.18': 'Material didático',
+    '1.19': 'Procedimentos de acompanhamento e de avaliação dos processos de ensino-aprendizagem',
+    '1.20': 'Número de vagas',
+    '1.21': 'Integração com as redes públicas de ensino',
+    '1.22': 'Integração do curso com o sistema local e regional de saúde (SUS)',
+    '1.23': 'Atividades práticas de ensino para áreas da saúde',
+    '1.24': 'Atividades práticas de ensino para licenciaturas',
+    '2.1': 'Núcleo Docente Estruturante – NDE',
+    '2.2': 'Equipe multidisciplinar',
+    '2.3': 'Atuação do coordenador',
+    '2.4': 'Regime de trabalho do coordenador de curso',
+    '2.5': 'Corpo docente: titulação',
+    '2.6': 'Regime de trabalho do corpo docente do curso',
+    '2.7': 'Experiência profissional do docente',
+    '2.8': 'Experiência no exercício da docência na educação básica',
+    '2.9': 'Experiência no exercício da docência superior',
+    '2.10': 'Experiência no exercício da docência na educação a distância',
+    '2.11': 'Experiência no exercício da tutoria na educação a distância',
+    '2.12': 'Atuação do colegiado de curso ou equivalente',
+    '2.13': 'Titulação e formação do corpo de tutores do curso',
+    '2.14': 'Experiência do corpo de tutores em educação a distância',
+    '2.15': 'Interação entre tutores, docentes e coordenadores de curso a distância',
+    '2.16': 'Produção científica, cultural, artística ou tecnológica',
+    '3.1': 'Espaço de trabalho para docentes em tempo integral',
+    '3.2': 'Espaço de trabalho para o coordenador',
+    '3.3': 'Sala coletiva de professores',
+    '3.4': 'Salas de aula',
+    '3.5': 'Acesso dos alunos a equipamentos de informática',
+    '3.6': 'Bibliografia básica por Unidade Curricular (UC)',
+    '3.7': 'Bibliografia complementar por Unidade Curricular (UC)',
+    '3.8': 'Laboratórios didáticos de formação básica',
+    '3.9': 'Laboratórios didáticos de formação específica',
+    '3.10': 'Laboratórios de ensino para a área de saúde',
+    '3.11': 'Laboratórios de habilidades',
+    '3.12': 'Unidades hospitalares e complexo assistencial conveniados',
+    '3.13': 'Biotérios',
+    '3.14': 'Processo de controle de produção ou distribuição de material didático (logística)',
+    '3.15': 'Núcleo de práticas jurídicas: atividades básicas e arbitragem, negociação, conciliação, mediação e atividades jurídicas reais',
+    '3.16': 'Comitê de Ética em Pesquisa (CEP)',
+    '3.17': 'Comitê de Ética na Utilização de Animais (CEUA)',
+    '3.18': 'Ambientes profissionais vinculados ao curso'
+  };
+
   var state = {
     cursos: [],
     indicadores: INDICADORES,
     updatedAt: null,
     panel: 'conceito',
     detailMode: false,
+    sort: {},
     excelBase64: null,
     excelName: null,
-    activeTab: 'excel'
+    activeTab: 'excel',
+    compareCodes: []
   };
 
   var el = {
     logo: document.getElementById('navLogo'),
-    kpiRow: document.getElementById('kpiRow'),
+    kpiChart: document.getElementById('kpiChart'),
+    chartTitle: document.getElementById('chartTitle'),
+    chartSubtitle: document.getElementById('chartSubtitle'),
+    chartTotal: document.getElementById('chartTotal'),
+    chartAno: document.getElementById('chartAno'),
+    vizUnidade: document.getElementById('vizUnidade'),
+    vizAto: document.getElementById('vizAto'),
+    vizAbaixo3: document.getElementById('vizAbaixo3'),
+    topSubtitle: document.getElementById('topSubtitle'),
+    lowSubtitle: document.getElementById('lowSubtitle'),
+    belowSubtitle: document.getElementById('belowSubtitle'),
+    vizRadar: document.getElementById('vizRadar'),
+    radarCard: document.getElementById('radarCard'),
+    radarSubtitle: document.getElementById('radarSubtitle'),
+    vizCompare: document.getElementById('vizCompare'),
+    compareCard: document.getElementById('compareCard'),
+    compareSubtitle: document.getElementById('compareSubtitle'),
+    heatPanel: document.getElementById('heatPanel'),
+    dataTable: document.getElementById('dataTable'),
     yearBars: document.getElementById('yearBars'),
     topIndicators: document.getElementById('topIndicators'),
     lowIndicators: document.getElementById('lowIndicators'),
@@ -43,8 +125,7 @@
     fileNameLabel: document.getElementById('fileNameLabel'),
     manualIndicadores: document.getElementById('manualIndicadores'),
     filters: {
-      codigo: document.getElementById('fCodigo'),
-      curso: document.getElementById('fCurso'),
+      cursoCodigo: document.getElementById('fCursoCodigo'),
       unidade: document.getElementById('fUnidade'),
       ano: document.getElementById('fAno'),
       ato: document.getElementById('fAto'),
@@ -67,15 +148,32 @@
     document.getElementById('btnCancelModal').addEventListener('click', closeModal);
     document.getElementById('btnSaveModal').addEventListener('click', saveModal);
     document.getElementById('btnClearFilters').addEventListener('click', clearFilters);
+    document.getElementById('btnCompareCourses').addEventListener('click', openCompareModal);
+    document.getElementById('btnCloseCompare').addEventListener('click', closeCompareModal);
+    document.getElementById('btnAddCompare').addEventListener('click', addCompareSlot);
+    document.getElementById('btnConfirmCompare').addEventListener('click', confirmCompare);
+    document.getElementById('btnEndCompare').addEventListener('click', endCompare);
+    document.getElementById('modalCompare').addEventListener('click', function (e) {
+      if (e.target === document.getElementById('modalCompare')) closeCompareModal();
+    });
+    document.getElementById('btnClearData').addEventListener('click', clearAllData);
     document.getElementById('btnCloseKpiModal').addEventListener('click', closeKpiModal);
     document.getElementById('btnCloseKpiModal2').addEventListener('click', closeKpiModal);
     document.getElementById('modalKpi').addEventListener('click', function (e) {
       if (e.target === document.getElementById('modalKpi')) closeKpiModal();
     });
 
+    el.filters.cursoCodigo.addEventListener('change', onCourseFilterChanged);
+    el.filters.unidade.addEventListener('change', onUnidadeFilterChanged);
     Object.keys(el.filters).forEach(function (key) {
+      if (key === 'cursoCodigo' || key === 'unidade') return;
       el.filters[key].addEventListener('change', onFiltersChanged);
     });
+    if (el.chartAno) {
+      el.chartAno.addEventListener('change', function () {
+        renderConceptChart();
+      });
+    }
 
     el.panelSwitcher.addEventListener('click', function (ev) {
       var btn = ev.target.closest('button[data-panel]');
@@ -145,17 +243,79 @@
           toast((res && res.error) || 'Falha ao carregar dados.', 'error');
           return;
         }
-        state.cursos = (res.data && res.data.cursos) || [];
+        state.cursos = prepareCursos((res.data && res.data.cursos) || []);
         state.updatedAt = res.data && res.data.updatedAt;
         if (res.indicadores && res.indicadores.length) state.indicadores = res.indicadores;
         populateFilterOptions();
         renderAll();
+        var cleanup = [];
+        if (res.removedDuplicates > 0) cleanup.push(res.removedDuplicates + ' registro(s) duplicado(s) foram excluídos.');
+        if (res.removedSparse > 0) cleanup.push(res.removedSparse + ' curso(s) com menos de 10 notas foram removidos.');
+        if (cleanup.length) toast(cleanup.join(' '), 'success');
       })
       .withFailureHandler(function (err) {
         setLoading(false);
         toast(String(err), 'error');
       })
       .getDashboardData();
+  }
+
+  var UNIDADE_NOMES = {
+    BG: 'Bangu',
+    BS: 'Bonsucesso',
+    CG: 'Campo Grande'
+  };
+
+  function foldText(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  function normalizeUnidadeCodigo(raw) {
+    var text = String(raw == null ? '' : raw).trim();
+    if (!text) return '';
+    var key = foldText(text).replace(/[^a-z0-9]+/g, '');
+    if (key === 'bg' || key.indexOf('bangu') >= 0) return 'BG';
+    if (key === 'bs' || key.indexOf('bonsucesso') >= 0) return 'BS';
+    if (key === 'cg' || key.indexOf('campogrande') >= 0) return 'CG';
+    if (key === 'ead' || key.indexOf('distancia') >= 0) return 'EAD';
+    return text.toUpperCase();
+  }
+
+  function normalizeAto(raw) {
+    var text = String(raw == null ? '' : raw).trim().replace(/\s+/g, ' ');
+    if (!text) return '';
+    var key = foldText(text);
+    if (key.indexOf('autoriz') === 0) return 'Autorização';
+    if (key.indexOf('reconhec') === 0) return 'Reconhecimento';
+    if (key.indexOf('renov') === 0) return 'Renovação';
+    return text;
+  }
+
+  function unidadeLabel(u) {
+    var code = normalizeUnidadeCodigo(u);
+    if (!code) return '';
+    return UNIDADE_NOMES[code] || code;
+  }
+
+  function compareCursos(a, b) {
+    var byName = String(a.curso || '').localeCompare(String(b.curso || ''), 'pt-BR', { sensitivity: 'base' });
+    if (byName) return byName;
+    var byYear = Number(a.anoVisita) - Number(b.anoVisita);
+    if (byYear) return byYear;
+    return unidadeLabel(a.unidade).localeCompare(unidadeLabel(b.unidade), 'pt-BR', { sensitivity: 'base' });
+  }
+
+  function prepareCursos(list) {
+    return keepScoredCursos(list).map(function (c) {
+      c.curso = String(c.curso || '').trim();
+      c.unidade = normalizeUnidadeCodigo(c.unidade);
+      c.atoRegulatorio = normalizeAto(c.atoRegulatorio);
+      return c;
+    }).sort(compareCursos);
   }
 
   function uniqueSorted(arr, numeric) {
@@ -178,25 +338,129 @@
       values.map(function (v) {
         return '<option value="' + escapeAttr(String(v)) + '">' + escapeHtml(String(v)) + '</option>';
       }).join('');
-    if (current && values.some(function (v) { return String(v) === current; })) {
+    var stillThere = current && values.some(function (v) { return String(v) === String(current); });
+    select.value = stillThere ? String(current) : '';
+  }
+
+  function fillUnidadeSelect(select, values, keepValue) {
+    var current = keepValue ? select.value : '';
+    var sorted = values.slice().sort(function (a, b) {
+      return unidadeLabel(a).localeCompare(unidadeLabel(b), 'pt-BR', { sensitivity: 'base' });
+    });
+    select.innerHTML = '<option value="">Todas</option>' +
+      sorted.map(function (v) {
+        return '<option value="' + escapeAttr(String(v)) + '">' + escapeHtml(unidadeLabel(v)) + '</option>';
+      }).join('');
+    if (current && sorted.some(function (v) { return String(v) === current; })) {
+      select.value = current;
+    } else if (!keepValue) {
+      select.value = '';
+    }
+  }
+
+  function courseFilterOptions() {
+    var byCode = {};
+    state.cursos.forEach(function (c) {
+      if (c.codigo == null || c.codigo === '') return;
+      var code = String(c.codigo);
+      if (!byCode[code]) {
+        byCode[code] = {
+          value: code,
+          name: String(c.curso || '').trim(),
+          unidade: String(c.unidade || '').trim()
+        };
+      }
+    });
+    return Object.keys(byCode).map(function (code) {
+      var item = byCode[code];
+      return {
+        value: item.value,
+        name: item.name,
+        unidade: item.unidade,
+        label: item.name ? (item.name + ' — ' + item.value) : item.value
+      };
+    }).sort(function (a, b) {
+      var byName = a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
+      if (byName !== 0) return byName;
+      return a.value.localeCompare(b.value, 'pt-BR', { numeric: true });
+    });
+  }
+
+  function fillCourseFilter(select, options, keepValue) {
+    var current = keepValue ? select.value : '';
+    select.innerHTML = '<option value="">Todos</option>' +
+      options.map(function (opt) {
+        return '<option value="' + escapeAttr(opt.value) + '" data-unidade="' + escapeAttr(opt.unidade || '') + '">' +
+          escapeHtml(opt.label) + '</option>';
+      }).join('');
+    if (current && options.some(function (opt) { return opt.value === current; })) {
       select.value = current;
     }
   }
 
+  function cursosForSelectedCourse() {
+    var code = el.filters.cursoCodigo.value;
+    if (!code) return state.cursos;
+    var unidade = el.filters.unidade.value;
+    return state.cursos.filter(function (c) {
+      if (String(c.codigo) !== code) return false;
+      if (unidade && String(c.unidade) !== unidade) return false;
+      return true;
+    });
+  }
+
+  function unitsForCourse(code) {
+    var seen = {};
+    var units = [];
+    state.cursos.forEach(function (c) {
+      if (code && String(c.codigo) !== code) return;
+      var unidade = normalizeUnidadeCodigo(c.unidade);
+      if (!unidade || seen[unidade]) return;
+      seen[unidade] = true;
+      units.push(unidade);
+    });
+    units.sort(function (a, b) {
+      return unidadeLabel(a).localeCompare(unidadeLabel(b), 'pt-BR', { sensitivity: 'base' });
+    });
+    return units;
+  }
+
+  function refreshYearAndAtoFilters(keepValues) {
+    var subset = cursosForSelectedCourse();
+    fillSelect(el.filters.ano, uniqueSorted(subset.map(function (c) { return c.anoVisita; }), true), 'Todos', keepValues);
+    fillSelect(el.filters.ato, uniqueSorted(subset.map(function (c) { return c.atoRegulatorio; })), 'Todos', keepValues);
+  }
+
   function populateFilterOptions() {
     var cursos = state.cursos;
-    fillSelect(el.filters.codigo, uniqueSorted(cursos.map(function (c) { return c.codigo; }), true), 'Todos', true);
-    fillSelect(el.filters.curso, uniqueSorted(cursos.map(function (c) { return c.curso; })), 'Todos', true);
-    fillSelect(el.filters.unidade, uniqueSorted(cursos.map(function (c) { return c.unidade; })), 'Todas', true);
-    fillSelect(el.filters.ano, uniqueSorted(cursos.map(function (c) { return c.anoVisita; }), true), 'Todos', true);
-    fillSelect(el.filters.ato, uniqueSorted(cursos.map(function (c) { return c.atoRegulatorio; })), 'Todos', true);
+    fillCourseFilter(el.filters.cursoCodigo, courseFilterOptions(), true);
+    fillUnidadeSelect(el.filters.unidade, uniqueSorted(cursos.map(function (c) { return c.unidade; })), true);
+    refreshYearAndAtoFilters(true);
+    if (el.chartAno) {
+      fillSelect(el.chartAno, uniqueSorted(cursos.map(function (c) { return c.anoVisita; }), true), 'Todos os anos', true);
+    }
     fillSelect(el.filters.faixa, uniqueSorted(cursos.map(function (c) { return c.conceitoFinalFaixa; }), true), 'Todos', true);
+  }
+
+  function onCourseFilterChanged() {
+    var code = el.filters.cursoCodigo.value;
+    var units = code ? unitsForCourse(code) : unitsForCourse('');
+    fillUnidadeSelect(el.filters.unidade, units, false);
+    el.filters.unidade.value = code && units.length ? units[0] : '';
+    el.filters.ano.value = '';
+    el.filters.ato.value = '';
+    refreshYearAndAtoFilters(false);
+    onFiltersChanged();
+  }
+
+  function onUnidadeFilterChanged() {
+    if (el.filters.cursoCodigo.value) refreshYearAndAtoFilters(true);
+    onFiltersChanged();
   }
 
   function getFilters() {
     return {
-      codigo: el.filters.codigo.value,
-      curso: el.filters.curso.value,
+      cursoCodigo: el.filters.cursoCodigo.value,
       unidade: el.filters.unidade.value,
       ano: el.filters.ano.value,
       ato: el.filters.ato.value,
@@ -207,8 +471,8 @@
   function filteredCursos() {
     var f = getFilters();
     return state.cursos.filter(function (c) {
-      if (f.codigo && String(c.codigo) !== f.codigo) return false;
-      if (f.curso && String(c.curso) !== f.curso) return false;
+      if (!matchesCompare(c)) return false;
+      if (f.cursoCodigo && String(c.codigo) !== f.cursoCodigo) return false;
       if (f.unidade && String(c.unidade) !== f.unidade) return false;
       if (f.ano && String(c.anoVisita) !== f.ano) return false;
       if (f.ato && String(c.atoRegulatorio) !== f.ato) return false;
@@ -218,30 +482,126 @@
   }
 
   function isDetailMode(filters) {
-    return !!(filters.codigo || filters.curso);
+    return !!filters.cursoCodigo;
+  }
+
+  /** Recorte do gráfico: ignora o curso selecionado para manter a visão geral. */
+  function chartCursos() {
+    var f = getFilters();
+    return state.cursos.filter(function (c) {
+      if (!matchesCompare(c)) return false;
+      if (f.unidade && String(c.unidade) !== f.unidade) return false;
+      if (f.ano && String(c.anoVisita) !== f.ano) return false;
+      if (f.ato && String(c.atoRegulatorio) !== f.ato) return false;
+      return true;
+    });
   }
 
   function onFiltersChanged() {
     var f = getFilters();
     var wasDetail = state.detailMode;
     state.detailMode = isDetailMode(f);
-    if (state.detailMode) {
+    if (state.detailMode && !wasDetail && state.panel !== 'calor') {
       state.panel = 'indicadores';
-    } else if (wasDetail) {
+    } else if (!state.detailMode && wasDetail && state.panel === 'indicadores') {
       state.panel = 'conceito';
     }
     renderAll();
   }
 
+  var compareSlotCount = 0;
+
+  function compareOptionsHtml() {
+    return '<option value="">Selecione</option>' + courseFilterOptions().map(function (item) {
+      return '<option value="' + escapeAttr(item.value) + '">' + escapeHtml(item.label) + '</option>';
+    }).join('');
+  }
+
+  function addCompareSlot() {
+    compareSlotCount += 1;
+    var slot = document.createElement('div');
+    slot.className = 'field compare-slot';
+    slot.innerHTML = '<label>Curso ' + compareSlotCount + '</label><select>' + compareOptionsHtml() + '</select>';
+    document.getElementById('compareSlots').appendChild(slot);
+  }
+
+  function matchesCompare(c) {
+    return !state.compareCodes.length || state.compareCodes.indexOf(String(c.codigo)) >= 0;
+  }
+
+  function renderCompareBanner() {
+    var banner = document.getElementById('compareBanner');
+    var list = document.getElementById('compareBannerList');
+    if (!banner || !list) return;
+    if (!state.compareCodes.length) {
+      banner.hidden = true;
+      list.innerHTML = '';
+      return;
+    }
+    var options = courseFilterOptions();
+    banner.hidden = false;
+    list.innerHTML = state.compareCodes.map(function (code) {
+      var found = null;
+      options.forEach(function (item) { if (item.value === code) found = item; });
+      return '<span class="compare-chip">' + escapeHtml(found ? found.label : code) + '</span>';
+    }).join('');
+  }
+
+  function openCompareModal() {
+    compareSlotCount = 0;
+    document.getElementById('compareSlots').innerHTML = '';
+    document.getElementById('compareHint').textContent = '';
+    var saved = state.compareCodes.slice();
+    var total = Math.max(2, saved.length);
+    var i;
+    for (i = 0; i < total; i++) addCompareSlot();
+    var selects = document.querySelectorAll('#compareSlots select');
+    saved.forEach(function (code, index) {
+      if (selects[index]) selects[index].value = code;
+    });
+    document.getElementById('modalCompare').classList.add('open');
+  }
+
+  function confirmCompare() {
+    var codes = [];
+    document.querySelectorAll('#compareSlots select').forEach(function (sel) {
+      if (sel.value && codes.indexOf(sel.value) < 0) codes.push(sel.value);
+    });
+    var hint = document.getElementById('compareHint');
+    if (codes.length < 2) {
+      hint.textContent = 'Escolha pelo menos dois cursos diferentes.';
+      return;
+    }
+    state.compareCodes = codes;
+    el.filters.cursoCodigo.value = '';
+    el.filters.unidade.value = '';
+    fillUnidadeSelect(el.filters.unidade, unitsForCourse(''), false);
+    refreshYearAndAtoFilters(false);
+    closeCompareModal();
+    onFiltersChanged();
+  }
+
+  function endCompare() {
+    state.compareCodes = [];
+    renderAll();
+  }
+
+  function closeCompareModal() {
+    document.getElementById('modalCompare').classList.remove('open');
+  }
+
   function clearFilters() {
     Object.keys(el.filters).forEach(function (k) { el.filters[k].value = ''; });
+    fillUnidadeSelect(el.filters.unidade, unitsForCourse(''), false);
+    refreshYearAndAtoFilters(false);
     state.detailMode = false;
     state.panel = 'conceito';
+    state.compareCodes = [];
     renderAll();
   }
 
   function setPanel(panel) {
-    if (state.detailMode && panel !== 'indicadores') return;
+    if (state.detailMode && panel !== 'indicadores' && panel !== 'calor') return;
     state.panel = panel;
     renderTable(filteredCursos());
     updatePanelSwitcher();
@@ -252,17 +612,18 @@
     buttons.forEach(function (btn) {
       var panel = btn.getAttribute('data-panel');
       btn.classList.toggle('active', panel === state.panel);
-      btn.disabled = state.detailMode && panel !== 'indicadores';
+      btn.disabled = state.detailMode && panel !== 'indicadores' && panel !== 'calor';
     });
-    if (state.detailMode) {
+    var titles = {
+      conceito: ['Painel Conceito', 'Visão geral dos cursos avaliados'],
+      indicadores: ['Painel de Indicadores', 'Notas por indicador. Passe o mouse no código da coluna para ver o nome.'],
+      detalhes: ['Painel de Detalhes', 'Distribuição de indicadores < 3 e ≥ 3 (geral, com CC e por ano)'],
+      calor: ['Mapa de calor', 'Nota de cada indicador por curso. Passe o mouse na célula para ver o nome.']
+    };
+    if (state.detailMode && state.panel === 'indicadores') {
       el.tableTitle.textContent = 'Painel de Indicadores';
       el.tableSubtitle.textContent = 'Indicadores do curso selecionado';
     } else {
-      var titles = {
-        conceito: ['Painel Conceito', 'Visão geral dos cursos avaliados'],
-        indicadores: ['Painel de Indicadores', 'Notas por indicador (1.1 a 3.18)'],
-        detalhes: ['Painel de Detalhes', 'Distribuição de indicadores < 3 e ≥ 3 (geral, com CC e por ano)']
-      };
       var t = titles[state.panel] || titles.conceito;
       el.tableTitle.textContent = t[0];
       el.tableSubtitle.textContent = t[1];
@@ -272,9 +633,13 @@
   function renderAll() {
     var f = getFilters();
     state.detailMode = isDetailMode(f);
-    if (state.detailMode) state.panel = 'indicadores';
+    if (state.detailMode && state.panel !== 'indicadores' && state.panel !== 'calor') {
+      state.panel = 'indicadores';
+    }
     var rows = filteredCursos();
-    renderKpis(rows);
+    renderCompareBanner();
+    renderConceptChart();
+    renderInsights();
     renderYearBars(rows);
     renderIndicatorExtremes(rows);
     updatePanelSwitcher();
@@ -285,57 +650,422 @@
       : 'Base local · ' + state.cursos.length + ' cursos';
   }
 
-  function renderKpis(rows) {
-    if (state.detailMode) {
-      var continuo = avg(rows.map(function (c) { return c.conceitoFinalContinuo; }));
-      var faixa = modeNumber(rows.map(function (c) { return c.conceitoFinalFaixa; }));
-      el.kpiRow.className = 'kpi-row cols-2';
-      el.kpiRow.innerHTML =
-        kpiHtml('Conceito Final Contínuo', formatScore(continuo), 'Clique para ver os cursos do recorte', 'tone-focus', 'detail-continuo') +
-        kpiHtml('Conceito Final Faixa', faixa == null ? '—' : String(faixa), 'Clique para ver os cursos do recorte', 'tone-accent', 'detail-faixa');
-      bindKpiClicks(rows);
+  function faixaTone(v) {
+    var n = toNum(v);
+    if (n === 5) return 'tone-5';
+    if (n === 4) return 'tone-4';
+    return 'tone-low';
+  }
+
+  function courseRowKey(c) {
+    return [String(c.codigo), String(c.anoVisita), String(c.unidade || '')].join('|');
+  }
+
+  function renderCourseScores(rows) {
+    var list = rows.slice().sort(function (a, b) { return Number(b.anoVisita) - Number(a.anoVisita); });
+    var name = list.length ? (list[0].curso || 'Curso') : 'Curso';
+    if (el.chartTitle) el.chartTitle.textContent = name;
+    el.chartSubtitle.textContent = list.length > 1
+      ? 'Conceito final contínuo e faixa de cada avaliação deste curso.'
+      : 'Conceito final contínuo e faixa do curso selecionado.';
+    el.chartTotal.textContent = '';
+    if (!list.length) {
+      el.kpiChart.innerHTML = '<p class="empty-soft">Sem avaliação para o recorte deste curso.</p>';
+      return;
+    }
+    el.kpiChart.innerHTML = list.map(function (c) {
+      var faixa = toNum(c.conceitoFinalFaixa);
+      var hint = [unidadeLabel(c.unidade), c.anoVisita, c.atoRegulatorio].filter(function (v) {
+        return v != null && v !== '';
+      }).join(' · ');
+      return '<div class="kpi-row cols-2 score-pair">' +
+        '<article class="kpi-card tone-accent">' +
+        '<p class="kpi-label">Conceito final contínuo</p>' +
+        '<p class="kpi-value">' + formatScore(c.conceitoFinalContinuo) + '</p>' +
+        '<p class="kpi-hint">' + escapeHtml(hint) + '</p></article>' +
+        '<article class="kpi-card tone-focus">' +
+        '<p class="kpi-label">Conceito final faixa</p>' +
+        '<p class="kpi-value">' + (faixa == null ? '—' : escapeHtml(String(faixa))) + '</p>' +
+        '<p class="kpi-hint">' + escapeHtml(hint) + '</p></article></div>';
+    }).join('');
+  }
+
+  function renderConceptChart() {
+    var selected = getFilters().cursoCodigo;
+    var panel = el.kpiChart.closest('.chart-panel');
+    if (selected) {
+      if (panel) panel.classList.add('is-course');
+      renderCourseScores(filteredCursos());
+      return;
+    }
+    if (panel) panel.classList.remove('is-course');
+    if (el.chartTitle) el.chartTitle.textContent = state.compareCodes.length ? 'Comparando cursos' : 'Notas dos cursos';
+    var year = el.chartAno ? el.chartAno.value : '';
+    var rows = state.cursos.filter(function (c) {
+      if (!matchesCompare(c)) return false;
+      return !year || String(c.anoVisita) === year;
+    });
+    state.chartRows = rows;
+    var scored = rows.filter(function (c) { return toNum(c.conceitoFinalFaixa) != null; });
+    scored.sort(function (a, b) {
+      var byYear = Number(a.anoVisita) - Number(b.anoVisita);
+      if (byYear) return byYear;
+      var faixa = toNum(a.conceitoFinalFaixa) - toNum(b.conceitoFinalFaixa);
+      if (faixa) return faixa;
+      var ca = toNum(a.conceitoFinalContinuo);
+      var cb = toNum(b.conceitoFinalContinuo);
+      if (ca != null && cb != null && ca !== cb) return ca - cb;
+      return String(a.curso || '').localeCompare(String(b.curso || ''), 'pt-BR', { sensitivity: 'base' });
+    });
+
+    var yearLabel = year ? 'Ano da visita ' + year : 'Todos os anos, agrupados pela visita';
+    el.chartSubtitle.textContent = yearLabel + ', da menor nota para a maior. Passe o mouse para ver o nome completo.';
+    var missing = rows.length - scored.length;
+    el.chartTotal.textContent = scored.length
+      ? scored.length + (scored.length === 1 ? ' curso com nota' : ' cursos com nota') +
+        (missing ? ' · ' + missing + ' sem nota' : '')
+      : 'Sem nota informada';
+
+    if (!scored.length) {
+      el.kpiChart.innerHTML = '<p class="empty-soft">' +
+        (year ? 'Sem conceitos em ' + escapeHtml(year) + '.' : 'Sem conceitos na base. Importe a planilha com valores.') +
+        '</p>';
       return;
     }
 
-    var scored = rows.filter(function (c) { return toNum(c.conceitoFinalFaixa) != null; });
-    var n5 = scored.filter(function (c) { return toNum(c.conceitoFinalFaixa) === 5; }).length;
-    var n4 = scored.filter(function (c) { return toNum(c.conceitoFinalFaixa) === 4; }).length;
-    var nLow = scored.filter(function (c) {
-      var v = toNum(c.conceitoFinalFaixa);
-      return v != null && v < 4;
-    }).length;
+    var groups = [];
+    scored.forEach(function (c) {
+      var y = String(c.anoVisita == null || c.anoVisita === '' ? '—' : c.anoVisita);
+      if (!groups.length || groups[groups.length - 1].year !== y) groups.push({ year: y, items: [] });
+      groups[groups.length - 1].items.push(c);
+    });
+    var showYears = groups.length > 1;
 
-    var hintBase = scored.length ? scored.length + ' com conceito informado · clique para detalhar' : 'Sem conceitos na base — importe a planilha com valores';
-    el.kpiRow.className = 'kpi-row cols-3';
-    el.kpiRow.innerHTML =
-      kpiHtml('Cursos com Nota 5', String(n5), scored.length ? pctLabel(n5, scored.length) + ' · clique' : hintBase, 'tone-5', 'nota-5') +
-      kpiHtml('Cursos com Nota 4', String(n4), scored.length ? pctLabel(n4, scored.length) + ' · clique' : hintBase, 'tone-4', 'nota-4') +
-      kpiHtml('Cursos com Nota < 4', String(nLow), scored.length ? pctLabel(nLow, scored.length) + ' · clique' : hintBase, 'tone-low', 'nota-lt4');
-    bindKpiClicks(rows);
-  }
+    var scale = '<div class="course-scale" aria-hidden="true"><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span></div>';
+    var cols = groups.map(function (group) {
+      var mark = showYears
+        ? '<div class="course-year-mark" aria-hidden="true"><span>' + escapeHtml(group.year) + '</span></div>'
+        : '';
+      return mark + group.items.map(function (c) {
+      var nota = toNum(c.conceitoFinalFaixa);
+      var h = Math.max(8, Math.round((nota / 5) * 100));
+      var on = selected && String(c.codigo) === selected ? ' is-on' : '';
+      var meta = [unidadeLabel(c.unidade), c.anoVisita].filter(function (v) { return v != null && v !== ''; }).join(' · ');
+      var label = c.curso || 'Curso';
+      var short = abbreviateCourse(label);
+      var tip = label + (meta ? ' · ' + meta : '') + ' · nota ' + nota;
+      if (toNum(c.conceitoFinalContinuo) != null) tip += ' · contínuo ' + formatScore(c.conceitoFinalContinuo);
+      return '<button type="button" class="course-col ' + faixaTone(nota) + on + '" data-key="' + escapeAttr(courseRowKey(c)) + '" title="' + escapeAttr(tip) + '">' +
+        '<span class="course-bar">' +
+        '<span class="course-score">' + escapeHtml(String(nota)) + '</span>' +
+        '<span class="course-track" aria-hidden="true"><span class="course-fill" style="height:' + h + '%"></span></span>' +
+        '</span>' +
+        '<span class="course-name"><strong>' + escapeHtml(short) + '</strong>' +
+        (meta ? '<span>' + escapeHtml(meta) + '</span>' : '') + '</span>' +
+        '</button>';
+      }).join('');
+    }).join('');
+    el.kpiChart.innerHTML = '<div class="course-h">' + scale + '<div class="course-cols">' + cols + '</div></div>';
+    var colsWrap = el.kpiChart.querySelector('.course-cols');
+    if (year && colsWrap && colsWrap.scrollWidth <= colsWrap.clientWidth + 2) {
+      colsWrap.classList.add('is-centered');
+    }
 
-  function kpiHtml(label, value, hint, tone, action) {
-    var clickable = action ? ' clickable' : '';
-    var attrs = action
-      ? ' role="button" tabindex="0" data-kpi="' + escapeAttr(action) + '"'
-      : '';
-    return '<article class="kpi-card ' + tone + clickable + '"' + attrs + '>' +
-      '<p class="kpi-label">' + escapeHtml(label) + '</p>' +
-      '<p class="kpi-value">' + escapeHtml(value) + '</p>' +
-      '<p class="kpi-hint">' + escapeHtml(hint) + '</p></article>';
-  }
-
-  function bindKpiClicks(rows) {
-    el.kpiRow.querySelectorAll('[data-kpi]').forEach(function (card) {
-      var open = function () { openKpiModal(card.getAttribute('data-kpi'), rows); };
-      card.addEventListener('click', open);
-      card.addEventListener('keydown', function (ev) {
-        if (ev.key === 'Enter' || ev.key === ' ') {
-          ev.preventDefault();
-          open();
-        }
+    el.kpiChart.querySelectorAll('.course-col').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var key = btn.getAttribute('data-key');
+        var found = state.chartRows.filter(function (c) { return courseRowKey(c) === key; });
+        if (!found.length) return;
+        var c = found[0];
+        showCoursesModal(c.curso || 'Curso', (unidadeLabel(c.unidade) || '—') + ' · ' + (c.anoVisita || '—') + ' · nota ' + (c.conceitoFinalFaixa == null ? '—' : c.conceitoFinalFaixa), found);
       });
     });
+  }
+
+  function renderInsights() {
+    var rows = chartCursos();
+    renderUnitChart(rows);
+    renderAtoChart(rows);
+    renderBelow3Chart(rows);
+    renderRadar(filteredCursos());
+  }
+
+  function scoreBands(list) {
+    var scored = list.filter(function (c) { return toNum(c.conceitoFinalFaixa) != null; });
+    return {
+      total: scored.length,
+      n5: scored.filter(function (c) { return toNum(c.conceitoFinalFaixa) === 5; }).length,
+      n4: scored.filter(function (c) { return toNum(c.conceitoFinalFaixa) === 4; }).length,
+      nLow: scored.filter(function (c) {
+        var v = toNum(c.conceitoFinalFaixa);
+        return v != null && v < 4;
+      }).length
+    };
+  }
+
+  function stackedBar(label, bands, extra) {
+    if (!bands.total) {
+      return '<div class="stack-row"><span class="stack-label">' + escapeHtml(label) + '</span>' +
+        '<span class="stack-empty">Sem nota</span></div>';
+    }
+    function seg(n, tone, name) {
+      if (!n) return '';
+      var w = (n / bands.total) * 100;
+      return '<span class="stack-seg ' + tone + '" style="width:' + w + '%" title="' + escapeAttr(name + ': ' + n) + '">' +
+        (w >= 12 ? n : '') + '</span>';
+    }
+    return '<div class="stack-row"><span class="stack-label">' + escapeHtml(label) + '</span>' +
+      '<span class="stack-track">' +
+      seg(bands.n5, 'tone-5', 'Nota 5') +
+      seg(bands.n4, 'tone-4', 'Nota 4') +
+      seg(bands.nLow, 'tone-low', 'Nota < 4') +
+      '</span><span class="stack-meta">' + bands.total +
+      (extra ? '<span>' + escapeHtml(extra) + '</span>' : '') +
+      '</span></div>';
+  }
+
+  function renderUnitChart(rows) {
+    var units = uniqueSorted(rows.map(function (c) { return c.unidade; }));
+    if (!units.length) {
+      el.vizUnidade.innerHTML = '<p class="empty-soft">Sem unidades no recorte.</p>';
+      return;
+    }
+    el.vizUnidade.innerHTML = units.map(function (u) {
+      var subset = rows.filter(function (c) { return String(c.unidade) === String(u); });
+      return stackedBar(unidadeLabel(u), scoreBands(subset));
+    }).join('');
+  }
+
+  function isAutorizacao(ato) {
+    var s = String(ato || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    return s.indexOf('autoriz') === 0;
+  }
+
+  function renderAtoChart(rows) {
+    var atos = uniqueSorted(rows.map(function (c) { return c.atoRegulatorio; }))
+      .filter(function (ato) { return !isAutorizacao(ato); });
+    if (!atos.length) {
+      el.vizAto.innerHTML = '<p class="empty-soft">Sem atos no recorte.</p>';
+      return;
+    }
+    el.vizAto.innerHTML = atos.map(function (ato) {
+      var subset = rows.filter(function (c) { return String(c.atoRegulatorio) === String(ato); });
+      var bands = scoreBands(subset);
+      var medio = avg(subset.map(function (c) { return c.conceitoFinalContinuo; }));
+      var extra = medio == null ? '' : 'média ' + formatScore(medio);
+      return stackedBar(String(ato), bands, extra);
+    }).join('');
+  }
+
+  function renderBelow3Chart(rows) {
+    if (getFilters().cursoCodigo) {
+      renderCourseBelow3(filteredCursos());
+      return;
+    }
+    if (el.belowSubtitle) el.belowSubtitle.textContent = 'Os indicadores com mais cursos abaixo da nota 3.';
+    var items = INDICADORES.map(function (ind) {
+      var scored = 0;
+      var low = 0;
+      rows.forEach(function (c) {
+        var v = toNum((c.indicadores || {})[ind]);
+        if (v == null) return;
+        scored++;
+        if (v < 3) low++;
+      });
+      return {
+        ind: ind,
+        low: low,
+        scored: scored,
+        pct: scored ? (low / scored) * 100 : 0
+      };
+    }).filter(function (x) { return x.low > 0; });
+    items.sort(function (a, b) { return b.pct - a.pct || b.low - a.low || indicatorSort(a.ind, b.ind); });
+    items = items.slice(0, 12);
+    el.vizAbaixo3.innerHTML = items.length
+      ? scoreBarList(items.map(function (x) {
+          return { ind: x.ind, value: x.pct, meta: x.low + ' · ' + formatPct(x.pct) };
+        }))
+      : '<p class="empty-soft">Nenhum indicador abaixo de 3 neste recorte.</p>';
+  }
+
+  function scoreBarList(items) {
+    var max = 0;
+    items.forEach(function (x) { if (x.value > max) max = x.value; });
+    return items.map(function (x) {
+      var w = max ? Math.max(4, Math.round((x.value / max) * 100)) : 0;
+      var name = indicatorName(x.ind);
+      return '<div class="low3-row" title="' + escapeAttr(name ? x.ind + ' — ' + name : x.ind) + '">' +
+        '<span class="low3-name"><strong>' + escapeHtml(x.ind) + '</strong>' +
+        (name ? '<span>' + escapeHtml(name) + '</span>' : '') + '</span>' +
+        '<span class="low3-track"><span class="low3-fill" style="width:' + w + '%"></span></span>' +
+        '<span class="low3-meta">' + x.meta + '</span></div>';
+    }).join('');
+  }
+
+  function dimensionMeans(rows, dim) {
+    var means = [];
+    rows.forEach(function (c) {
+      var vals = [];
+      INDICADORES.forEach(function (ind) {
+        if (ind.charAt(0) !== dim) return;
+        var v = toNum((c.indicadores || {})[ind]);
+        if (v != null) vals.push(v);
+      });
+      if (vals.length) means.push(vals.reduce(function (a, b) { return a + b; }, 0) / vals.length);
+    });
+    return means;
+  }
+
+  function numberPack(nums) {
+    if (!nums.length) return { max: null, avg: null, min: null };
+    var max = nums[0];
+    var min = nums[0];
+    var sum = 0;
+    nums.forEach(function (n) {
+      sum += n;
+      if (n > max) max = n;
+      if (n < min) min = n;
+    });
+    return { max: max, avg: sum / nums.length, min: min };
+  }
+
+  function fieldNums(rows, field) {
+    return rows.map(function (c) { return toNum(c[field]); }).filter(function (v) { return v != null; });
+  }
+
+  function meanOf(nums) {
+    if (!nums.length) return null;
+    return nums.reduce(function (a, b) { return a + b; }, 0) / nums.length;
+  }
+
+  function formatStat(n) {
+    return n == null ? '—' : formatScore(n);
+  }
+
+  function metricCard(title, pack, courseText) {
+    var rows = [
+      ['Nota mais alta', formatStat(pack.max)],
+      ['Média geral', formatStat(pack.avg)],
+      ['Nota mais baixa', formatStat(pack.min)],
+      ['Curso', courseText == null ? '—' : courseText]
+    ];
+    return '<article class="radar-score"><h3>' + escapeHtml(title) + '</h3>' +
+      rows.map(function (row, i) {
+        var tone = i === 3 ? 'is-curso' : 'is-geral';
+        return '<p><span>' + row[0] + '</span><strong class="' + tone + '">' + row[1] + '</strong></p>';
+      }).join('') +
+      '</article>';
+  }
+
+  function renderRadar(selectedRows) {
+    if (!getFilters().cursoCodigo) {
+      el.radarCard.hidden = true;
+      el.compareCard.hidden = true;
+      return;
+    }
+    el.radarCard.hidden = false;
+    el.compareCard.hidden = false;
+    var name = (selectedRows[0] && selectedRows[0].curso) || 'Curso selecionado';
+    var benchmark = state.cursos;
+    var dims = [
+      { id: '1', label: 'Organização' },
+      { id: '2', label: 'Corpo docente' },
+      { id: '3', label: 'Infraestrutura' }
+    ];
+    el.radarSubtitle.textContent = name + ' comparado a todos os cursos.';
+    el.vizRadar.innerHTML = dims.map(function (d) {
+      var courseMean = meanOf(dimensionMeans(selectedRows, d.id));
+      return metricCard(d.label, numberPack(dimensionMeans(benchmark, d.id)), formatStat(courseMean));
+    }).join('');
+
+    var several = selectedRows.length > 1;
+    el.compareSubtitle.textContent = several
+      ? 'Média das avaliações de ' + name + ' diante de todos os cursos.'
+      : name + ' diante de todos os cursos.';
+    el.vizCompare.innerHTML = [
+      { title: 'Contínuo', field: 'conceitoFinalContinuo' },
+      { title: 'Faixa', field: 'conceitoFinalFaixa' }
+    ].map(function (item) {
+      var courseNums = fieldNums(selectedRows, item.field);
+      var course = meanOf(courseNums);
+      var courseText = formatStat(course);
+      if (item.field === 'conceitoFinalFaixa' && courseNums.length === 1) courseText = String(courseNums[0]);
+      return metricCard(item.title, numberPack(fieldNums(benchmark, item.field)), courseText);
+    }).join('');
+  }
+
+  function heatClass(v) {
+    if (v == null) return 'heat-empty';
+    if (v >= 5) return 'heat-5';
+    if (v >= 4) return 'heat-4';
+    if (v >= 3) return 'heat-3';
+    return 'heat-low';
+  }
+
+  function renderHeatmap(rows) {
+    var list = rows.filter(function (c) {
+      return INDICADORES.some(function (ind) { return toNum((c.indicadores || {})[ind]) != null; });
+    });
+    if (!list.length) {
+      el.heatPanel.innerHTML = '<p class="empty-soft">Sem notas de indicadores para o mapa.</p>';
+      return;
+    }
+    list.sort(function (a, b) {
+      var name = String(a.curso || '').localeCompare(String(b.curso || ''), 'pt-BR', { sensitivity: 'base' });
+      if (name) return name;
+      return Number(a.anoVisita) - Number(b.anoVisita);
+    });
+    var head = '<tr><th class="heat-sticky">Curso</th>' + INDICADORES.map(function (ind) {
+      var name = indicatorName(ind);
+      return '<th title="' + escapeAttr(name ? ind + ' — ' + name : ind) + '">' + escapeHtml(ind) + '</th>';
+    }).join('') + '</tr>';
+    var body = list.map(function (c) {
+      var meta = [unidadeLabel(c.unidade), c.anoVisita].filter(function (v) { return v != null && v !== ''; }).join(' · ');
+      var cells = '<th class="heat-sticky" data-value="' + escapeAttr(c.curso || '') + '" title="' + escapeAttr((c.curso || '') + (meta ? ' · ' + meta : '')) + '">' +
+        '<strong>' + escapeHtml(c.curso || '—') + '</strong>' +
+        (meta ? '<span>' + escapeHtml(meta) + '</span>' : '') + '</th>';
+      INDICADORES.forEach(function (ind) {
+        var v = toNum((c.indicadores || {})[ind]);
+        var name = indicatorName(ind);
+        var tip = (c.curso || '') + ' · ' + ind + (name ? ' ' + name : '') + ' · ' + (v == null ? 'sem nota' : formatScore(v));
+        cells += '<td class="' + heatClass(v) + '" data-value="' + escapeAttr(v == null ? '' : String(v)) + '" title="' + escapeAttr(tip) + '">' +
+          (v == null ? '' : escapeHtml(String(v))) + '</td>';
+      });
+      return '<tr>' + cells + '</tr>';
+    }).join('');
+    el.heatPanel.innerHTML = '<div class="heat-scroll"><table class="heat-table"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
+    bindTableSort(el.heatPanel.querySelector('table'), 'calor');
+  }
+
+  function showCoursesModal(title, subtitle, list) {
+    document.getElementById('kpiModalTitle').textContent = title;
+    document.getElementById('kpiModalSubtitle').textContent = subtitle;
+    document.getElementById('kpiModalHead').innerHTML =
+      '<tr>' + th('Código') + th('Curso') + th('Unidade') + th('Ano Visita') +
+      th('Ato Regulatório') + th('Conceito Contínuo') + th('Conceito Faixa') + '</tr>';
+
+    var body = document.getElementById('kpiModalBody');
+    if (!list.length) {
+      body.innerHTML = emptyRow(7);
+    } else {
+      body.innerHTML = list.map(function (c) {
+        return '<tr>' +
+          td(escapeHtml(c.codigo), 'num') +
+          td(escapeHtml(c.curso)) +
+          td(escapeHtml(unidadeLabel(c.unidade))) +
+          td(escapeHtml(c.anoVisita), 'num') +
+          td(escapeHtml(c.atoRegulatorio)) +
+          td(formatScore(c.conceitoFinalContinuo), 'num') +
+          td(faixaBadge(c.conceitoFinalFaixa), '') +
+          '</tr>';
+      }).join('');
+    }
+    document.getElementById('modalKpi').classList.add('open');
+    var modalHead = document.getElementById('kpiModalHead');
+    bindTableSort(modalHead ? modalHead.closest('table') : null, 'modal');
   }
 
   function openKpiModal(action, rows) {
@@ -366,29 +1096,7 @@
       return;
     }
 
-    document.getElementById('kpiModalTitle').textContent = title;
-    document.getElementById('kpiModalSubtitle').textContent = subtitle;
-    document.getElementById('kpiModalHead').innerHTML =
-      '<tr>' + th('Código') + th('Curso') + th('Unidade') + th('Ano Visita') +
-      th('Ato Regulatório') + th('Conceito Contínuo') + th('Conceito Faixa') + '</tr>';
-
-    var body = document.getElementById('kpiModalBody');
-    if (!list.length) {
-      body.innerHTML = emptyRow(7);
-    } else {
-      body.innerHTML = list.map(function (c) {
-        return '<tr>' +
-          td(c.codigo, 'num') +
-          td(c.curso) +
-          td(c.unidade) +
-          td(c.anoVisita, 'num') +
-          td(c.atoRegulatorio) +
-          td(formatScore(c.conceitoFinalContinuo), 'num') +
-          td(faixaBadge(c.conceitoFinalFaixa), '') +
-          '</tr>';
-      }).join('');
-    }
-    document.getElementById('modalKpi').classList.add('open');
+    showCoursesModal(title, subtitle, list);
   }
 
   function closeKpiModal() {
@@ -462,46 +1170,147 @@
     };
   }
 
+  function formatIndicatorScore(n) {
+    if (n == null) return '—';
+    if (Math.abs(n - Math.round(n)) < 0.001) return String(Math.round(n));
+    return formatScore(n);
+  }
+
+  function courseIndicatorMap(rows) {
+    var map = {};
+    rows.forEach(function (c) {
+      var inds = c.indicadores || {};
+      INDICADORES.forEach(function (ind) {
+        var v = toNum(inds[ind]);
+        if (v == null) return;
+        if (!map[ind]) map[ind] = [];
+        map[ind].push(v);
+      });
+    });
+    return map;
+  }
+
+  function indicatorPlainList(codes, scoreOf) {
+    return codes.map(function (ind) {
+      var name = indicatorName(ind);
+      var score = scoreOf ? scoreOf(ind) : '';
+      return '<div class="ind-plain" title="' + escapeAttr(name ? ind + ' — ' + name : ind) + '">' +
+        '<span class="low3-name"><strong>' + escapeHtml(ind) + '</strong>' +
+        (name ? '<span>' + escapeHtml(name) + '</span>' : '') + '</span>' +
+        (score ? '<span class="low3-meta is-curso">' + score + '</span>' : '') +
+        '</div>';
+    }).join('');
+  }
+
+  function renderCourseIndicatorLists(rows) {
+    var map = courseIndicatorMap(rows);
+    var codes = Object.keys(map);
+    if (!codes.length) {
+      if (el.topSubtitle) el.topSubtitle.textContent = 'Indicadores deste curso na nota mais alta.';
+      if (el.lowSubtitle) el.lowSubtitle.textContent = 'Indicadores deste curso na nota mais baixa.';
+      el.topIndicators.innerHTML = '<p class="empty-soft">Sem notas de indicadores.</p>';
+      el.lowIndicators.innerHTML = '<p class="empty-soft">Sem notas de indicadores.</p>';
+      return;
+    }
+    var max = null;
+    var min = null;
+    codes.forEach(function (ind) {
+      map[ind].forEach(function (v) {
+        if (max == null || v > max) max = v;
+        if (min == null || v < min) min = v;
+      });
+    });
+    var tops = codes.filter(function (ind) {
+      return map[ind].some(function (v) { return nearlyEqual(v, max); });
+    }).sort(indicatorSort);
+    var lows = codes.filter(function (ind) {
+      return map[ind].some(function (v) { return nearlyEqual(v, min); });
+    }).sort(indicatorSort);
+    if (el.topSubtitle) el.topSubtitle.textContent = 'Nota ' + formatIndicatorScore(max) + ' neste curso.';
+    if (el.lowSubtitle) el.lowSubtitle.textContent = 'Nota ' + formatIndicatorScore(min) + ' neste curso.';
+    el.topIndicators.innerHTML = tops.length
+      ? indicatorPlainList(tops)
+      : '<p class="empty-soft">Nenhum indicador.</p>';
+    el.lowIndicators.innerHTML = lows.length
+      ? indicatorPlainList(lows)
+      : '<p class="empty-soft">Nenhum indicador.</p>';
+  }
+
+  function renderCourseBelow3(rows) {
+    if (el.belowSubtitle) el.belowSubtitle.textContent = 'Indicadores deste curso com nota inferior a 3.';
+    var map = courseIndicatorMap(rows);
+    var codes = Object.keys(map).filter(function (ind) {
+      return map[ind].some(function (v) { return v < 3; });
+    }).sort(indicatorSort);
+    el.vizAbaixo3.innerHTML = codes.length
+      ? indicatorPlainList(codes, function (ind) {
+          var lows = map[ind].filter(function (v) { return v < 3; });
+          var seen = {};
+          return lows.filter(function (v) {
+            var key = formatIndicatorScore(v);
+            if (seen[key]) return false;
+            seen[key] = true;
+            return true;
+          }).map(formatIndicatorScore).join(' · ');
+        })
+      : '<p class="empty-soft">Nenhum indicador abaixo de 3 neste curso.</p>';
+  }
+
   function renderIndicatorExtremes(rows) {
+    if (getFilters().cursoCodigo) {
+      renderCourseIndicatorLists(rows);
+      return;
+    }
     var packed = collectIndicatorStats(rows);
     var list = packed.items;
     if (!list.length || packed.globalMax == null) {
-      el.topIndicators.innerHTML = '<li class="empty-soft" style="display:block;background:transparent;border:none;">Sem notas de indicadores.</li>';
-      el.lowIndicators.innerHTML = '<li class="empty-soft" style="display:block;background:transparent;border:none;">Sem notas de indicadores.</li>';
+      if (el.topSubtitle) el.topSubtitle.textContent = 'Os que mais atingiram a maior nota do recorte.';
+      if (el.lowSubtitle) el.lowSubtitle.textContent = 'Os que mais atingiram a menor nota do recorte.';
+      el.topIndicators.innerHTML = '<p class="empty-soft">Sem notas de indicadores.</p>';
+      el.lowIndicators.innerHTML = '<p class="empty-soft">Sem notas de indicadores.</p>';
       return;
     }
 
-    var tops = list.filter(function (x) { return x.hitMax > 0; })
-      .sort(function (a, b) { return indicatorSort(a.indicador, b.indicador); });
-    var lows = list.filter(function (x) { return x.hitMin > 0; })
-      .sort(function (a, b) { return indicatorSort(a.indicador, b.indicador); });
-
-    var topTitle = el.topIndicators.previousElementSibling;
-    var lowTitle = el.lowIndicators.previousElementSibling;
-    if (topTitle && topTitle.tagName === 'H3') {
-      topTitle.innerHTML = 'Indicadores com a Maior Nota <span style="font-weight:600;color:#5B6B7F;text-transform:none;letter-spacing:0;">(' +
-        formatScore(packed.globalMax) + ')</span>';
-    }
-    if (lowTitle && lowTitle.tagName === 'H3') {
-      lowTitle.innerHTML = 'Indicadores com a Menor Nota <span style="font-weight:600;color:#5B6B7F;text-transform:none;letter-spacing:0;">(' +
-        formatScore(packed.globalMin) + ')</span>';
+    function rank(hitKey) {
+      return list.filter(function (x) { return x[hitKey] > 0; })
+        .map(function (x) {
+          var pct = x.count ? (x[hitKey] / x.count) * 100 : 0;
+          return { ind: x.indicador, value: pct, hits: x[hitKey], meta: x[hitKey] + ' · ' + formatPct(pct) };
+        })
+        .sort(function (a, b) { return b.value - a.value || b.hits - a.hits || indicatorSort(a.ind, b.ind); })
+        .slice(0, 12);
     }
 
+    var tops = rank('hitMax');
+    var lows = rank('hitMin');
+    if (el.topSubtitle) el.topSubtitle.textContent = 'Nota ' + formatScore(packed.globalMax) + ' · até 12 indicadores, dos mais frequentes.';
+    if (el.lowSubtitle) el.lowSubtitle.textContent = 'Nota ' + formatScore(packed.globalMin) + ' · até 12 indicadores, dos mais frequentes.';
     el.topIndicators.innerHTML = tops.length
-      ? tops.map(function (x) { return indicatorItem(x, x.hitMax, x.count, 'high'); }).join('')
-      : '<li class="empty-soft" style="display:block;background:transparent;border:none;">Nenhum indicador.</li>';
+      ? scoreBarList(tops)
+      : '<p class="empty-soft">Nenhum indicador.</p>';
     el.lowIndicators.innerHTML = lows.length
-      ? lows.map(function (x) { return indicatorItem(x, x.hitMin, x.count, 'low'); }).join('')
-      : '<li class="empty-soft" style="display:block;background:transparent;border:none;">Nenhum indicador.</li>';
+      ? scoreBarList(lows)
+      : '<p class="empty-soft">Nenhum indicador.</p>';
   }
 
-  function indicatorItem(x, hits, totalForInd, cls) {
-    var pct = totalForInd ? (hits / totalForInd) * 100 : 0;
-    return '<li class="' + cls + '"><span class="ind-code">' + escapeHtml(x.indicador) + '</span>' +
-      '<span class="ind-meta">' + hits + ' · ' + pct.toFixed(1).replace('.', ',') + '%</span></li>';
+  function indicatorName(code) {
+    return INDICADOR_NOMES[code] || '';
+  }
+
+  function indicatorLabelHtml(code) {
+    var name = indicatorName(code);
+    return '<span class="ind-label"><strong>' + escapeHtml(code) + '</strong>' +
+      (name ? '<span>' + escapeHtml(name) + '</span>' : '') + '</span>';
   }
 
   function renderTable(rows) {
+    var calor = state.panel === 'calor';
+    el.dataTable.hidden = calor;
+    el.heatPanel.hidden = !calor;
+    if (calor) {
+      renderHeatmap(rows);
+      return;
+    }
     if (state.detailMode || state.panel === 'indicadores') {
       renderIndicadoresTable(rows);
     } else if (state.panel === 'detalhes') {
@@ -509,6 +1318,7 @@
     } else {
       renderConceitoTable(rows);
     }
+    bindTableSort(el.dataTable, state.panel);
   }
 
   function renderConceitoTable(rows) {
@@ -524,7 +1334,7 @@
       return '<tr>' +
         td(c.codigo, 'num') +
         td(c.curso) +
-        td(c.unidade) +
+        td(escapeHtml(unidadeLabel(c.unidade))) +
         td(c.anoVisita, 'num') +
         td(c.atoRegulatorio) +
         td(formatScore(c.conceitoFinalContinuo), 'num') +
@@ -535,7 +1345,10 @@
 
   function renderIndicadoresTable(rows) {
     var head = '<tr>' + th('Código') + th('Curso') + th('Unidade') + th('Ano Visita') + th('Ato Regulatório');
-    INDICADORES.forEach(function (ind) { head += th(ind); });
+    INDICADORES.forEach(function (ind) {
+      var name = indicatorName(ind);
+      head += th(ind, name ? ind + ' — ' + name : ind);
+    });
     head += '</tr>';
     el.tableHead.innerHTML = head;
 
@@ -546,7 +1359,7 @@
 
     el.tableBody.innerHTML = rows.map(function (c) {
       var inds = c.indicadores || {};
-      var cells = td(c.codigo, 'num') + td(c.curso) + td(c.unidade) + td(c.anoVisita, 'num') + td(c.atoRegulatorio);
+      var cells = td(c.codigo, 'num') + td(c.curso) + td(escapeHtml(unidadeLabel(c.unidade))) + td(c.anoVisita, 'num') + td(c.atoRegulatorio);
       INDICADORES.forEach(function (ind) {
         var v = toNum(inds[ind]);
         cells += td(formatScore(v), 'num ' + scoreClass(v));
@@ -577,7 +1390,7 @@
       'Qnt ≥ 3 (2025)',
       '% ≥ 3 (2025)'
     ];
-    el.tableHead.innerHTML = '<tr>' + headers.map(th).join('') + '</tr>';
+    el.tableHead.innerHTML = '<tr>' + headers.map(function (h) { return th(h); }).join('') + '</tr>';
 
     var totalCursos = rows.length || 1;
     var byYear = { 2023: 0, 2024: 0, 2025: 0 };
@@ -636,7 +1449,7 @@
 
     el.tableBody.innerHTML = details.map(function (d) {
       return '<tr>' +
-        td(d.indicador, 'num') +
+        td(indicatorLabelHtml(d.indicador), 'ind-name-cell', d.indicador) +
         td(d.qtdLt3, 'num score-bad') +
         td(d.qtdGt3, 'num score-ok') +
         td(formatPct(d.pctLt3), 'num') +
@@ -659,9 +1472,131 @@
     }).join('');
   }
 
-  function th(text) { return '<th>' + escapeHtml(text) + '</th>'; }
-  function td(content, cls) {
-    return '<td class="' + (cls || '') + '">' + (content == null ? '—' : content) + '</td>';
+  function th(text, title) {
+    var cls = 'sortable' + (title ? ' has-tip' : '');
+    var tip = title ? ' title="' + escapeAttr(title) + '"' : '';
+    return '<th class="' + cls + '"' + tip + '>' + escapeHtml(text) + '</th>';
+  }
+  function td(content, cls, sortValue) {
+    var attr = sortValue != null && sortValue !== ''
+      ? ' data-value="' + escapeAttr(String(sortValue)) + '"'
+      : '';
+    return '<td class="' + (cls || '') + '"' + attr + '>' + (content == null ? '—' : content) + '</td>';
+  }
+
+  function bindTableSort(table, panelKey) {
+    if (!table || !table.tHead || !table.tBodies[0]) return;
+    var headers = table.tHead.rows[0] ? table.tHead.rows[0].cells : [];
+    Array.prototype.forEach.call(headers, function (header, index) {
+      header.classList.add('sortable');
+      header.tabIndex = 0;
+      var run = function () { toggleColumnSort(table, panelKey, index); };
+      header.addEventListener('click', run);
+      header.addEventListener('keydown', function (ev) {
+        if (ev.key !== 'Enter' && ev.key !== ' ') return;
+        ev.preventDefault();
+        run();
+      });
+    });
+    var saved = state.sort[panelKey];
+    if (saved && headers[saved.index]) applyColumnSort(table, saved.index, saved.dir);
+  }
+
+  function toggleColumnSort(table, panelKey, index) {
+    var current = state.sort[panelKey];
+    var dir = current && current.index === index && current.dir === 'asc' ? 'desc' : 'asc';
+    state.sort[panelKey] = { index: index, dir: dir };
+    applyColumnSort(table, index, dir);
+  }
+
+  function applyColumnSort(table, index, dir) {
+    var headers = table.tHead.rows[0].cells;
+    Array.prototype.forEach.call(headers, function (header, i) {
+      header.classList.remove('sort-asc', 'sort-desc');
+      if (i === index) header.classList.add(dir === 'asc' ? 'sort-asc' : 'sort-desc');
+    });
+    var body = table.tBodies[0];
+    var rows = Array.prototype.filter.call(body.rows, function (row) {
+      return !(row.cells.length === 1 && row.cells[0].colSpan > 1);
+    });
+    rows.sort(function (a, b) {
+      return compareSortValues(cellSortValue(a.cells[index]), cellSortValue(b.cells[index]), dir);
+    });
+    rows.forEach(function (row) { body.appendChild(row); });
+  }
+
+  function cellSortValue(cell) {
+    if (!cell) return '';
+    if (cell.hasAttribute('data-value')) return cell.getAttribute('data-value');
+    return (cell.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function compareSortValues(va, vb, dir) {
+    var aEmpty = va === '' || va === '—' || va == null;
+    var bEmpty = vb === '' || vb === '—' || vb == null;
+    if (aEmpty && bEmpty) return 0;
+    if (aEmpty) return 1;
+    if (bEmpty) return -1;
+    var ia = indicatorRank(va);
+    var ib = indicatorRank(vb);
+    var cmp;
+    if (ia != null && ib != null) cmp = ia - ib;
+    else {
+      var na = toSortNumber(va);
+      var nb = toSortNumber(vb);
+      if (na != null && nb != null) cmp = na - nb;
+      else cmp = String(va).localeCompare(String(vb), 'pt-BR', { sensitivity: 'base', numeric: true });
+    }
+    return dir === 'asc' ? cmp : -cmp;
+  }
+
+  function indicatorRank(value) {
+    var match = String(value).trim().match(/^(\d+)\.(\d+)$/);
+    if (!match) return null;
+    return Number(match[1]) * 1000 + Number(match[2]);
+  }
+
+  function toSortNumber(value) {
+    var text = String(value).replace(/%/g, '').replace(/\s/g, '').replace(',', '.');
+    if (!text || text === '—' || text === '-') return null;
+    var n = Number(text);
+    return isFinite(n) ? n : null;
+  }
+
+  function abbreviateCourse(name) {
+    var raw = String(name || '').trim();
+    if (!raw) return 'Curso';
+    var known = {
+      'analise e desenvolvimento de sistemas': 'ADS',
+      'arquitetura e urbanismo': 'Arq. Urb.',
+      'ciencia da computacao': 'Ciên. Comp.',
+      'ciencias contabeis': 'Ciên. Cont.',
+      'design de interiores': 'Design Int.',
+      'design grafico': 'Design Gráf.',
+      'gestao de recursos humanos': 'GRH',
+      'gestao hospitalar': 'Gest. Hosp.',
+      'automacao industrial': 'Autom. Ind.',
+      'seguranca publica': 'Seg. Púb.',
+      'educacao fisica': 'Ed. Física',
+      'servicos juridicos': 'Serv. Jur.'
+    };
+    var hit = known[foldName(raw)];
+    if (hit) return hit;
+    var stop = { de: 1, da: 1, do: 1, das: 1, dos: 1, e: 1 };
+    var words = raw.split(/\s+/).filter(function (word) { return !stop[foldName(word)]; });
+    if (!words.length) return raw;
+    if (words.length === 1) return words[0];
+    if (words.length >= 3) {
+      return words.map(function (word) { return word.charAt(0).toUpperCase(); }).join('');
+    }
+    return words.map(function (word) {
+      if (foldName(word).length <= 5) return word;
+      return word.slice(0, 4).replace(/[.\s]+$/, '') + '.';
+    }).join(' ');
+  }
+
+  function foldName(value) {
+    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
   }
   function emptyRow(cols) {
     return '<tr><td colspan="' + cols + '" style="text-align:center;color:#5B6B7F;padding:1.5rem;">Nenhum registro para o filtro atual.</td></tr>';
@@ -705,6 +1640,33 @@
     document.getElementById('tab-manual').classList.toggle('active', tab === 'manual');
   }
 
+  function clearAllData() {
+    var ok = window.confirm('Limpar toda a base? Os cursos salvos serão apagados para você importar uma planilha nova.');
+    if (!ok) return;
+    setLoading(true);
+    google.script.run
+      .withSuccessHandler(function (res) {
+        setLoading(false);
+        if (!res || !res.ok) {
+          toast((res && res.error) || 'Falha ao limpar a base.', 'error');
+          return;
+        }
+        state.cursos = [];
+        state.updatedAt = res.data && res.data.updatedAt;
+        state.detailMode = false;
+        state.panel = 'conceito';
+        Object.keys(el.filters).forEach(function (k) { el.filters[k].value = ''; });
+        populateFilterOptions();
+        renderAll();
+        toast('Base limpa. Importe a planilha nova em Incluir curso.', 'success');
+      })
+      .withFailureHandler(function (err) {
+        setLoading(false);
+        toast(String(err), 'error');
+      })
+      .clearAllData();
+  }
+
   function readExcelFile(file) {
     if (!/\.xlsx?$/i.test(file.name)) {
       toast('Envie um arquivo Excel (.xlsx).', 'error');
@@ -736,7 +1698,7 @@
             toast((res && res.error) || 'Falha na importação.', 'error');
             return;
           }
-          state.cursos = (res.data && res.data.cursos) || [];
+          state.cursos = prepareCursos((res.data && res.data.cursos) || []);
           state.updatedAt = res.data && res.data.updatedAt;
           populateFilterOptions();
           renderAll();
@@ -782,7 +1744,7 @@
           toast((res && res.error) || 'Falha ao salvar.', 'error');
           return;
         }
-        state.cursos = (res.data && res.data.cursos) || [];
+        state.cursos = prepareCursos((res.data && res.data.cursos) || []);
         state.updatedAt = res.data && res.data.updatedAt;
         populateFilterOptions();
         renderAll();
@@ -797,6 +1759,19 @@
   }
 
   /* ===== helpers ===== */
+  function notaCount(c) {
+    var n = 0;
+    var inds = (c && c.indicadores) || {};
+    Object.keys(inds).forEach(function (k) {
+      if (inds[k] != null && inds[k] !== '') n++;
+    });
+    return n;
+  }
+
+  function keepScoredCursos(list) {
+    return (list || []).filter(function (c) { return notaCount(c) >= 10; });
+  }
+
   function toNum(v) {
     if (v === null || v === undefined || v === '') return null;
     var n = Number(String(v).replace(',', '.'));
@@ -874,6 +1849,8 @@
     parts.push((res.imported || res.total || 0) + ' curso(s)');
     if (d.withFaixa != null) parts.push(d.withFaixa + ' com conceito faixa');
     if (d.withIndicadores != null) parts.push(d.withIndicadores + ' com indicadores');
+    if (res.removedDuplicates > 0) parts.push(res.removedDuplicates + ' duplicata(s) excluída(s)');
+    if (res.removedSparse > 0) parts.push(res.removedSparse + ' com menos de 10 notas removido(s)');
     if (d.refErrors) parts.push(d.refErrors + ' células #REF! ignoradas');
     var msg = 'Importação: ' + parts.join(' · ');
     if (d.withFaixa === 0 && d.withIndicadores === 0) {
@@ -923,6 +1900,10 @@
           saveCursoManual: function (curso) {
             DEMO_CURSOS.push(curso);
             this._ok({ ok: true, data: { cursos: DEMO_CURSOS, updatedAt: new Date().toISOString() }, total: DEMO_CURSOS.length });
+          },
+          clearAllData: function () {
+            DEMO_CURSOS.length = 0;
+            this._ok({ ok: true, total: 0, data: { cursos: [], updatedAt: new Date().toISOString() } });
           }
         }
       }

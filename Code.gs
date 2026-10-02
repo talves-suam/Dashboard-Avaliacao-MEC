@@ -29,6 +29,14 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
+/** Data URL do logo UNISUAM, lida de LogoData.html. */
+function getLogoDataUrl() {
+  var html = HtmlService.createHtmlOutputFromFile('LogoData').getContent();
+  var match = String(html).match(/LOGO_UNISUAM_B64\s*=\s*"([^"]+)"/);
+  if (!match) return '';
+  return 'data:image/png;base64,' + match[1];
+}
+
 /** Garante pasta + arquivo JSON no Drive do usuário. */
 function getOrCreateDataFile_() {
   var folders = DriveApp.getFoldersByName(CONFIG.FOLDER_NAME);
@@ -54,10 +62,20 @@ function readData_() {
   var raw = file.getBlob().getDataAsString('UTF-8');
   var data = JSON.parse(raw || '{"version":1,"cursos":[]}');
   if (!data.cursos) data.cursos = [];
+  var beforeSig = cursosSignature_(data.cursos);
   var before = data.cursos.length;
   data.cursos = dedupeCursos_(data.cursos);
-  data = mergeMissingScoresFromSeed_(data);
-  if (data.cursos.length !== before) writeData_(data);
+  var removed = before - data.cursos.length;
+  var normalized = cursosSignature_(data.cursos) !== beforeSig;
+  if (!data.skipSeedMerge) {
+    data = mergeMissingScoresFromSeed_(data);
+  }
+  var beforeSparse = data.cursos.length;
+  data.cursos = dropSparseCursos_(data.cursos);
+  var removedSparse = beforeSparse - data.cursos.length;
+  if (removed > 0 || removedSparse > 0 || normalized) writeData_(data);
+  data.removedDuplicates = removed;
+  data.removedSparse = removedSparse;
   return data;
 }
 
@@ -131,6 +149,8 @@ function getDashboardData() {
     return {
       ok: true,
       data: data,
+      removedDuplicates: data.removedDuplicates || 0,
+      removedSparse: data.removedSparse || 0,
       folderUrl: getDataFolderUrl_(),
       indicadores: INDICADORES_LISTA
     };
@@ -157,12 +177,23 @@ function saveCursos(cursos, strategy) {
     strategy = strategy || 'upsert';
     var data = readData_();
 
+    var incomingCount = 0;
     if (strategy === 'replace_all') {
-      data.cursos = dedupeCursos_(cursos.map(normalizeCurso_));
+      var normalized = [];
+      cursos.forEach(function (raw) {
+        var c = normalizeCurso_(raw);
+        var key = courseKey_(c);
+        if (!key || key === '||') return;
+        normalized.push(c);
+        incomingCount++;
+      });
+      data.cursos = dedupeCursos_(normalized);
     } else {
       cursos.forEach(function (incoming) {
         var c = normalizeCurso_(incoming);
         var key = courseKey_(c);
+        if (!key || key === '||') return;
+        incomingCount++;
         var idx = -1;
         for (var i = 0; i < data.cursos.length; i++) {
           if (courseKey_(data.cursos[i]) === key) {
@@ -176,11 +207,26 @@ function saveCursos(cursos, strategy) {
           data.cursos.push(c);
         }
       });
+      var beforeDedupe = data.cursos.length;
       data.cursos = dedupeCursos_(data.cursos);
+      incomingCount = beforeDedupe;
     }
 
+    var beforeSparse = data.cursos.length;
+    data.cursos = dropSparseCursos_(data.cursos);
+    var removedSparse = beforeSparse - data.cursos.length;
+    var removedDuplicates = Math.max(0, incomingCount - data.cursos.length - removedSparse);
+    data.skipSeedMerge = true;
+    delete data.removedDuplicates;
+    delete data.removedSparse;
     writeData_(data);
-    return { ok: true, total: data.cursos.length, data: data };
+    return {
+      ok: true,
+      total: data.cursos.length,
+      removedDuplicates: removedDuplicates,
+      removedSparse: removedSparse,
+      data: data
+    };
   } catch (err) {
     return { ok: false, error: String(err && err.message ? err.message : err) };
   }
@@ -188,6 +234,21 @@ function saveCursos(cursos, strategy) {
 
 function saveCursoManual(curso) {
   return saveCursos([curso], 'upsert');
+}
+
+/** Esvazia a base para uma importação nova, sem recolocar o seed. */
+function clearAllData() {
+  try {
+    var data = {
+      version: 1,
+      cursos: [],
+      skipSeedMerge: true
+    };
+    writeData_(data);
+    return { ok: true, total: 0, data: data };
+  } catch (err) {
+    return { ok: false, error: String(err && err.message ? err.message : err) };
+  }
 }
 
 function deleteCurso(codigo, anoVisita, unidade) {
@@ -207,6 +268,34 @@ function deleteCurso(codigo, anoVisita, unidade) {
   }
 }
 
+function normalizeUnidadeCodigo_(raw) {
+  var text = String(raw == null ? '' : raw).trim();
+  if (!text) return '';
+  var key = text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '');
+  if (key === 'bg' || key.indexOf('bangu') >= 0) return 'BG';
+  if (key === 'bs' || key.indexOf('bonsucesso') >= 0) return 'BS';
+  if (key === 'cg' || key.indexOf('campogrande') >= 0) return 'CG';
+  if (key === 'ead' || key.indexOf('distancia') >= 0) return 'EAD';
+  return text.toUpperCase();
+}
+
+function normalizeAto_(raw) {
+  var text = String(raw == null ? '' : raw).trim().replace(/\s+/g, ' ');
+  if (!text) return '';
+  var key = text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (key.indexOf('autoriz') === 0) return 'Autorização';
+  if (key.indexOf('reconhec') === 0) return 'Reconhecimento';
+  if (key.indexOf('renov') === 0) return 'Renovação';
+  return text;
+}
+
 function normalizeCurso_(raw) {
   var indicadores = {};
   INDICADORES_LISTA.forEach(function (key) {
@@ -219,9 +308,9 @@ function normalizeCurso_(raw) {
   return {
     codigo: raw.codigo != null ? (isFinite(Number(raw.codigo)) ? Number(raw.codigo) : String(raw.codigo)) : null,
     curso: String(raw.curso || '').trim(),
-    unidade: String(raw.unidade || '').trim(),
+    unidade: normalizeUnidadeCodigo_(raw.unidade),
     anoVisita: toNumberOrNull_(raw.anoVisita),
-    atoRegulatorio: String(raw.atoRegulatorio || raw.ato || '').trim(),
+    atoRegulatorio: normalizeAto_(raw.atoRegulatorio || raw.ato),
     conceitoFinalContinuo: toNumberOrNull_(raw.conceitoFinalContinuo),
     conceitoFinalFaixa: toNumberOrNull_(raw.conceitoFinalFaixa),
     indicadores: indicadores
@@ -564,6 +653,18 @@ function findSheet_(ss, names) {
   return null;
 }
 
+function cursosSignature_(cursos) {
+  return (cursos || []).map(function (c) {
+    return [
+      c && c.codigo,
+      c && c.curso,
+      c && c.unidade,
+      c && c.anoVisita,
+      c && c.atoRegulatorio
+    ].join('|');
+  }).join('\n');
+}
+
 function courseKey_(c) {
   var codigo = c && c.codigo != null ? String(c.codigo).trim() : '';
   if (codigo && isFinite(Number(codigo))) codigo = String(Number(codigo));
@@ -572,6 +673,20 @@ function courseKey_(c) {
     : '';
   var unidade = String((c && c.unidade) || '').trim().toUpperCase();
   return [codigo, ano, unidade].join('|');
+}
+
+function countNotas_(c) {
+  var n = 0;
+  var inds = (c && c.indicadores) || {};
+  Object.keys(inds).forEach(function (k) {
+    if (inds[k] != null && inds[k] !== '') n++;
+  });
+  return n;
+}
+
+/** Descarta cursos com menos de 10 notas preenchidas (cargas parciais e duplicatas incompletas). */
+function dropSparseCursos_(cursos) {
+  return (cursos || []).filter(function (c) { return countNotas_(c) >= 10; });
 }
 
 /** Remove duplicatas pela chave codigo|ano|unidade, mesclando notas. */

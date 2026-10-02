@@ -25,17 +25,13 @@
         <div class="panel-head">
           <div>
             <h2 class="panel-title">Filtros de exibição</h2>
-            <p class="panel-subtitle">Por padrão, todos os cursos. Código e Curso abrem a visão detalhada.</p>
+            <p class="panel-subtitle">Por padrão, todos os cursos. Código e Curso, juntos, abrem a visão detalhada.</p>
           </div>
         </div>
         <div class="filters-grid">
-          <div class="field">
-            <label for="fCodigo">Código e-Mec</label>
-            <select id="fCodigo"><option value="">Todos</option></select>
-          </div>
-          <div class="field">
-            <label for="fCurso">Curso</label>
-            <select id="fCurso"><option value="">Todos</option></select>
+          <div class="field field-wide">
+            <label for="fCursoCodigo">Código e Curso</label>
+            <select id="fCursoCodigo"><option value="">Todos</option></select>
           </div>
           <div class="field">
             <label for="fUnidade">Unidade</label>
@@ -55,24 +51,92 @@
           </div>
         </div>
         <div class="filters-actions">
+          <button type="button" class="btn btn-secondary btn-sm" id="btnCompareCourses">Comparar cursos</button>
           <button type="button" class="btn btn-secondary btn-sm" id="btnClearFilters">Limpar filtros</button>
         </div>
       </section>
 
-      <section id="kpiRow" class="kpi-row cols-3" aria-label="Indicadores principais"></section>
+      <section class="compare-banner" id="compareBanner" hidden>
+        <strong>Comparando</strong>
+        <div id="compareBannerList"></div>
+        <button type="button" class="btn btn-secondary btn-sm" id="btnEndCompare">Encerrar</button>
+      </section>
 
-      <section class="stats-row" aria-label="Segunda linha de dados">
+      <section class="panel chart-panel" aria-label="Notas de todos os cursos">
+        <div class="panel-head chart-head">
+          <div>
+            <h2 class="panel-title" id="chartTitle">Notas dos cursos</h2>
+            <p class="panel-subtitle" id="chartSubtitle">Organizado por ano da visita, da menor nota para a maior.</p>
+          </div>
+          <label class="chart-year" for="chartAno">
+            Ano da visita
+            <select id="chartAno"><option value="">Todos os anos</option></select>
+          </label>
+          <div class="chart-legend" id="chartLegend">
+            <span class="legend-item tone-5">Nota 5</span>
+            <span class="legend-item tone-4">Nota 4</span>
+            <span class="legend-item tone-low">Nota &lt; 4</span>
+          </div>
+          <p class="chart-total" id="chartTotal"></p>
+        </div>
+        <div id="kpiChart" class="course-chart"></div>
+      </section>
+
+      <section class="viz-grid" aria-label="Outras visualizações">
+        <article class="panel viz-card">
+          <h2 class="panel-title">Conceito por unidade</h2>
+          <p class="panel-subtitle">Quantidade de cursos em cada faixa, por campus.</p>
+          <div class="stack-legend">
+            <span class="legend-item tone-5">Nota 5</span>
+            <span class="legend-item tone-4">Nota 4</span>
+            <span class="legend-item tone-low">Nota &lt; 4</span>
+          </div>
+          <div id="vizUnidade" class="viz-body"></div>
+        </article>
+        <article class="panel viz-card">
+          <h2 class="panel-title">Conceito por ato regulatório</h2>
+          <p class="panel-subtitle">Reconhecimento e renovação. Autorização fica de fora.</p>
+          <div class="stack-legend">
+            <span class="legend-item tone-5">Nota 5</span>
+            <span class="legend-item tone-4">Nota 4</span>
+            <span class="legend-item tone-low">Nota &lt; 4</span>
+          </div>
+          <div id="vizAto" class="viz-body"></div>
+        </article>
+        <article class="panel viz-card" id="radarCard" hidden>
+          <h2 class="panel-title">Dimensões do instrumento</h2>
+          <p class="panel-subtitle" id="radarSubtitle">Organização, corpo docente e infraestrutura deste curso diante de todos os cursos.</p>
+          <div id="vizRadar" class="viz-body radar-scores"></div>
+        </article>
+        <article class="panel viz-card" id="compareCard" hidden>
+          <h2 class="panel-title">Conceito contra a média</h2>
+          <p class="panel-subtitle" id="compareSubtitle">Contínuo e faixa deste curso diante de todos os cursos.</p>
+          <div id="vizCompare" class="viz-body radar-scores"></div>
+        </article>
+      </section>
+
+      <section class="year-strip" aria-label="Quantidade de avaliações">
         <article class="stat-card">
           <h3>Quantidade de Avaliações</h3>
           <div id="yearBars" class="year-bars"></div>
         </article>
-        <article class="stat-card">
-          <h3>Indicadores com a Maior Nota</h3>
-          <ul id="topIndicators" class="indicator-list"></ul>
+      </section>
+
+      <section class="stats-row" aria-label="Indicadores em destaque">
+        <article class="panel viz-card">
+          <h2 class="panel-title">Indicadores com a maior nota</h2>
+          <p class="panel-subtitle" id="topSubtitle">Os que mais atingiram a maior nota do recorte.</p>
+          <div id="topIndicators" class="viz-body"></div>
         </article>
-        <article class="stat-card">
-          <h3>Indicadores com a Menor Nota</h3>
-          <ul id="lowIndicators" class="indicator-list"></ul>
+        <article class="panel viz-card">
+          <h2 class="panel-title">Indicadores com a menor nota</h2>
+          <p class="panel-subtitle" id="lowSubtitle">Os que mais atingiram a menor nota do recorte.</p>
+          <div id="lowIndicators" class="viz-body"></div>
+        </article>
+        <article class="panel viz-card">
+          <h2 class="panel-title">Indicadores abaixo de 3</h2>
+          <p class="panel-subtitle" id="belowSubtitle">Os indicadores com mais cursos abaixo da nota 3.</p>
+          <div id="vizAbaixo3" class="viz-body"></div>
         </article>
       </section>
 
@@ -86,6 +150,7 @@
             <button type="button" class="active" data-panel="conceito">Painel Conceito</button>
             <button type="button" data-panel="indicadores">Painel de Indicadores</button>
             <button type="button" data-panel="detalhes">Painel de Detalhes</button>
+            <button type="button" data-panel="calor">Mapa de calor</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -93,6 +158,7 @@
             <thead id="tableHead"></thead>
             <tbody id="tableBody"></tbody>
           </table>
+          <div id="heatPanel" hidden></div>
         </div>
         <div class="status-bar">
           <span id="rowCount">0 registros</span>
@@ -132,6 +198,10 @@
             Dica: se quiser, exportar cada aba com “Colar especial → Valores” e importar em sequência também funciona (upsert).
           </p>
           <p class="panel-subtitle" style="margin-top:0.35rem;" id="fileNameLabel">Nenhum arquivo selecionado.</p>
+          <div class="import-tools">
+            <button type="button" class="btn btn-danger btn-sm" id="btnClearData">Limpar base atual</button>
+            <p class="panel-subtitle">Apaga os cursos salvos para importar uma planilha nova. Registros duplicados (mesmo código, ano e unidade) são excluídos automaticamente.</p>
+          </div>
         </div>
 
         <div class="tab-pane" id="tab-manual">
@@ -155,6 +225,23 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="btnCancelModal">Cancelar</button>
         <button type="button" class="btn btn-primary" id="btnSaveModal">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modalCompare" role="dialog" aria-modal="true" aria-labelledby="compareModalTitle">
+    <div class="modal modal-compare">
+      <div class="modal-header">
+        <h2 id="compareModalTitle">Comparar cursos</h2>
+        <button type="button" class="modal-close" id="btnCloseCompare" aria-label="Fechar">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="compareSlots"></div>
+        <button type="button" class="btn btn-secondary compare-add" id="btnAddCompare" aria-label="Adicionar curso">+</button>
+      </div>
+      <div class="modal-footer">
+        <p class="compare-hint" id="compareHint"></p>
+        <button type="button" class="btn btn-primary" id="btnConfirmCompare">OK</button>
       </div>
     </div>
   </div>
